@@ -16,7 +16,7 @@ SBI ?= rustsbi
 BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
 
 # KERNEL ENTRY
-KERNEL_ENTRY_PA := 0x80200000
+KERNEL_ENTRY_PA := 0x80000000
 
 # Binutils
 OBJDUMP := rust-objdump --arch-name=riscv64
@@ -57,7 +57,7 @@ run: run-inner
 
 QEMU_ARGS := -machine virt \
 			 -nographic \
-			 -bios $(BOOTLOADER) \
+			 -bios none \
 			 -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
 
 QEMU_NAME := qemu-system-riscv64
