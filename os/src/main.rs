@@ -13,6 +13,8 @@ pub mod trap;
 
 use core::arch::global_asm;
 
+use sbi::Memory_Managr;
+
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
 
