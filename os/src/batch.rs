@@ -30,7 +30,7 @@ static USER_STACK: UserStack = UserStack {
 
 impl KernelStack {
     fn get_sp(&self) -> usize {
-        self.data.as_ptr() as usize + USER_STACK_SIZE
+        self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
 
     fn push_context(&self, cx: TrapContext) -> &'static mut TrapContext {

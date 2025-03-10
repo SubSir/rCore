@@ -76,12 +76,12 @@ impl MemoryManager {
     }
 
     pub unsafe fn read_char(&self) -> u8 {
-        while (self.read_byte(LSR) & 0x20 == 0) {}
+        // while self.read_byte(LSR) & 0x20 == 0 {}
         self.read_byte(RBR)
     }
 
     pub unsafe fn put_char(&self, c: u8) {
-        while (self.read_byte(LSR) & 0x20 == 0) {}
+        // while self.read_byte(LSR) & 0x20 == 0 {}
         self.write_byte(THR, c);
     }
 }
