@@ -14,6 +14,16 @@ pub fn console_putchar(c: usize) {
 }
 
 pub fn shutdown(failure: bool) -> ! {
+    const VIRT_TEST: *mut u32 = 0x10_0000 as *mut u32;
+    let value;
+    if failure {
+        value = 0x3333;
+    } else {
+        value = 0x5555;
+    }
+    unsafe {
+        core::ptr::write_volatile(VIRT_TEST, value);
+    }
     unreachable!()
 }
 
