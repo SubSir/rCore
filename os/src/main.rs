@@ -5,12 +5,14 @@
 
 mod console;
 mod batch;
+mod config;
 mod lang_items;
+mod loader;
 mod sbi;
 mod sync;
 pub mod syscall;
+mod task;
 pub mod trap;
-
 use core::arch::asm;
 use core::arch::global_asm;
 use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};

@@ -3,8 +3,8 @@
 
 #[macro_use]
 pub mod console;
-mod syscall;
 mod lang_items;
+mod syscall;
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.entry")]
@@ -38,4 +38,8 @@ pub fn write(fd: usize, buffer: &[u8]) -> isize {
 
 pub fn exit(exit_code: i32) -> isize {
     sys_exit(exit_code)
+}
+
+pub fn yield_() -> isize {
+    sys_yield()
 }
