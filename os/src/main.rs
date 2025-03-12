@@ -13,7 +13,9 @@ pub mod syscall;
 mod task;
 pub mod trap;
 use core::arch::asm;
+mod timer;
 use core::arch::global_asm;
+use riscv::register::mie;
 use riscv::register::{mepc, mstatus, pmpaddr0, pmpcfg0, satp, sie};
 
 global_asm!(include_str!("entry.asm"));
@@ -25,6 +27,8 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     trap::init();
     loader::load_apps();
+    trap::enable_timer_interrupt();
+    timer::set_next_trigger();
     task::run_first_task();
 }
 
@@ -46,6 +50,8 @@ unsafe fn init() -> ! {
     sie::set_ssoft();
     sie::set_sext();
     sie::set_stimer();
+    sbi::set_timer(1000000);
+    mstatus::set_mie();
     pmpaddr0::write(0x3fffffffffffff);
     pmpcfg0::write(0xf);
     asm!("mret", options(noreturn),)

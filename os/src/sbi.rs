@@ -1,6 +1,7 @@
 // os/src/sbi.rs
 use crate::sync::UPSafeCell;
 use lazy_static::*;
+use riscv::register::mhartid;
 
 unsafe impl Send for MemoryManager {}
 lazy_static! {
@@ -93,5 +94,15 @@ impl MemoryManager {
     pub unsafe fn put_char(&self, c: u8) {
         // while self.read_byte(LSR) & 0x20 == 0 {}
         self.write_byte(THR, c);
+    }
+}
+
+const MTIME_ADDR: usize = 0x0200bff8;
+const MTIMECMP_ADDR: usize = 0x02004000;
+pub fn set_timer(timer: usize) {
+    let hartid = mhartid::read();
+    let mtimecmp = (MTIMECMP_ADDR + (8 * hartid)) as *mut u64;
+    unsafe {
+        core::ptr::write_volatile(mtimecmp, timer as u64);
     }
 }

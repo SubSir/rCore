@@ -13,3 +13,8 @@ pub fn sys_yield() -> isize {
     suspend_crttent_and_run_next();
     0
 }
+
+pub fn sys_get_time() -> isize {
+    use crate::timer::get_time_us;
+    get_time_us() as isize
+}
