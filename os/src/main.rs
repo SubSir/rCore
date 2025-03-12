@@ -4,7 +4,6 @@
 #[macro_use]
 
 mod console;
-mod batch;
 mod config;
 mod lang_items;
 mod loader;
@@ -25,8 +24,8 @@ pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
     trap::init();
-    batch::init();
-    batch::run_next_app();
+    loader::load_apps();
+    task::run_first_task();
 }
 
 fn clear_bss() {
