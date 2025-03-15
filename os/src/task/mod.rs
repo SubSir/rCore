@@ -104,7 +104,7 @@ lazy_static! {
     };
 }
 
-pub fn suspend_crttent_and_run_next() {
+pub fn suspend_current_and_run_next() {
     mark_current_suspended();
     run_next_task();
 }

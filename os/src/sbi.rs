@@ -97,10 +97,8 @@ impl MemoryManager {
     }
 }
 
-const MTIME_ADDR: usize = 0x0200bff8;
-const MTIMECMP_ADDR: usize = 0x02004000;
-pub fn set_timer(timer: usize) {
-    let hartid = mhartid::read();
+use crate::config::*;
+pub fn set_timer(hartid: usize, timer: usize) {
     let mtimecmp = (MTIMECMP_ADDR + (8 * hartid)) as *mut u64;
     unsafe {
         core::ptr::write_volatile(mtimecmp, timer as u64);

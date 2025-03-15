@@ -65,7 +65,7 @@ QEMU_NAME := qemu-system-riscv64
 run-inner: build
 	@qemu-system-riscv64 $(QEMU_ARGS)
 
-debug:  build
+debug:  portclean build
 	@tmux new-session -d \
 		"qemu-system-riscv64 $(QEMU_ARGS) -gdb tcp::1235 -S" && \
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1235'" && \
@@ -78,6 +78,6 @@ gdbclient:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1235'
 
 portclean:
-	@lsof -i :1235 && kill -9 `lsof -t -i :1235`
+    @lsof -t -i :1235 | xargs -r kill -9 
 
 .PHONY: build env kernel clean disasm disasm-vim run-inner gdbserver gdbclient qemu-version-check portclean

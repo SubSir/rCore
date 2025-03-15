@@ -1,20 +1,22 @@
 mod context;
 
-use crate::{sie, syscall::syscall, task::suspend_crttent_and_run_next, timer::set_next_trigger};
+use crate::{syscall::syscall, task::suspend_current_and_run_next};
 pub use context::TrapContext;
-use core::arch::global_asm;
+use core::arch::{asm, global_asm};
 
 global_asm!(include_str!("trap.S"));
 use crate::task::exit_current_and_run_next;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
-    stval, stvec,
+    sie, sip, stval, stvec,
 };
-pub fn init() {
+#[no_mangle]
+pub fn init_() {
     extern "C" {
         fn __alltraps();
     }
+
     unsafe {
         stvec::write(__alltraps as usize, TrapMode::Direct);
     }
@@ -37,9 +39,15 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
             exit_current_and_run_next();
         }
-        Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            set_next_trigger();
-            suspend_crttent_and_run_next();
+        Trap::Interrupt(Interrupt::SupervisorSoft) => {
+            println!("[Timer] interrupt in application, kernel suspend it.");
+            let mut sip = sip::read().bits();
+            sip = sip & !(1 << 1);
+            unsafe {
+                asm!("csrw sip, {}", in(reg) sip);
+            }
+            suspend_current_and_run_next();
+            // println!("[Timer] interrupt handled");
         }
         _ => {
             panic!(
