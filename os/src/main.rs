@@ -2,6 +2,7 @@
 #![no_main]
 #![no_std]
 #![feature(alloc_error_handler)]
+
 #[macro_use]
 
 mod console;
@@ -25,6 +26,7 @@ global_asm!(include_str!("link_app.S"));
 global_asm!(include_str!("time_handler.S"));
 
 extern crate alloc;
+extern crate bitflags;
 
 #[no_mangle]
 pub fn rust_main() {
@@ -35,6 +37,9 @@ pub fn rust_main() {
     // task::run_first_task();
     mm::init_heap();
     mm::heap_test();
+    mm::init_frame_allocator();
+    mm::frame_allocator_test();
+    sbi::shutdown(false);
 }
 
 fn clear_bss() {

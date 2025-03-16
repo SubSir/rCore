@@ -56,7 +56,7 @@ unsafe impl GlobalAlloc for Buddy {
         if i < 0 {
             return null_mut();
         }
-        println!("i: {}", i);
+        // println!("i: {}", i);
         let mut father = SIZE_TABEL[i as usize];
         SIZE_TABEL[i as usize] = NODE_LIST[father].next;
         NODE_LIST[father].used = true;
@@ -70,8 +70,12 @@ unsafe impl GlobalAlloc for Buddy {
         let base_ptr = HEAP_SPACE.as_mut_ptr();
         let target_ptr = base_ptr.add(addr);
         // println!(
-        //     "alloc: {}, base_ptr: {:x}, target_ptr: {:x}",
-        //     addr, base_ptr as usize, target_ptr as usize
+        //     "[buddy] size: {:x}, target_ptr: {:x}, base_ptr: {:x}, allocated: {:x}, node: {}",
+        //     _layout.size(),
+        //     target_ptr as usize,
+        //     base_ptr as usize,
+        //     size * BLOCK_SIZE,
+        //     father
         // );
         target_ptr
     }
@@ -85,12 +89,14 @@ unsafe impl GlobalAlloc for Buddy {
         }
         let width = NODE_WIDTH - self.log_2(size);
         let base_ptr = HEAP_SPACE.as_mut_ptr();
-        let addr = (_ptr as usize - base_ptr as usize) / 8 / BLOCK_SIZE;
+        let addr = ((_ptr as usize - base_ptr as usize) / BLOCK_SIZE / size) * size;
         let node = addr + (1 << width);
         let buddy = node ^ 1;
         // println!(
-        //     "dealloc: {:x}, node: {}, buddy: {}",
-        //     _ptr as usize, node, buddy
+        //     "[buddy] size: {:X}, dealloc: {:x}, node: {}",
+        //     _layout.size(),
+        //     _ptr as usize,
+        //     node,
         // );
         NODE_LIST[node].used = false;
         if buddy == 0 {
