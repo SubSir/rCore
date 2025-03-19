@@ -10,6 +10,8 @@ pub const NODE_WIDTH: usize = 13;
 pub const BLOCK_SIZE: usize = 1 << (KERNEL_HEAP_WIDTH - NODE_WIDTH);
 pub const NODE_SIZE: usize = 1 << NODE_WIDTH;
 pub const MEMORY_END: usize = 0x80800000;
+pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
+pub const TRAP_CONTEXT: usize = TRAMPOLINE - PAGE_SIZE;
 
 pub const CLOCK_FREQ: usize = 12500000;
 pub const TICK_PER_SEC: usize = 100;
