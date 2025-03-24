@@ -76,7 +76,11 @@ impl From<usize> for VirtPageNum {
 
 impl From<VirtAddr> for usize {
     fn from(value: VirtAddr) -> Self {
-        value.0
+        if value.0 >= (1 << (VA_WIDTH_SV39 - 1)) {
+            value.0 | (!((1 << VA_WIDTH_SV39) - 1))
+        } else {
+            value.0
+        }
     }
 }
 
@@ -122,7 +126,11 @@ impl PhysAddr {
     }
 
     pub fn ceil(&self) -> PhysPageNum {
-        PhysPageNum((self.0 + PAGE_SIZE - 1) / PAGE_SIZE)
+        if self.0 == 0 {
+            PhysPageNum(0)
+        } else {
+            PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
+        }
     }
 }
 impl VirtAddr {
@@ -161,7 +169,7 @@ impl VirtPageNum {
         let mut vpn = self.0;
         let mut idx = [0usize; 3];
         for i in (0..3).rev() {
-            idx[i] = vpn % 512;
+            idx[i] = vpn & 511;
             vpn >>= 9;
         }
         idx

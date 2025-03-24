@@ -29,17 +29,14 @@ extern crate alloc;
 extern crate bitflags;
 
 #[no_mangle]
-pub fn rust_main() {
+pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
-    // trap::init_();
-    // loader::load_apps();
-    // task::run_first_task();
-    mm::init_heap();
-    mm::heap_test();
-    mm::init_frame_allocator();
-    mm::frame_allocator_test();
-    sbi::shutdown(false);
+    mm::init();
+    println!("[kernel] memory init");
+    mm::remap_test();
+    trap::init_();
+    task::run_first_task();
 }
 
 fn clear_bss() {

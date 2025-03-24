@@ -1,6 +1,10 @@
 mod context;
 
-use crate::{syscall::syscall, task::suspend_current_and_run_next};
+use crate::{
+    config::{TRAMPOLINE, TRAP_CONTEXT},
+    syscall::syscall,
+    task::{current_trap_cx, current_user_token, suspend_current_and_run_next},
+};
 pub use context::TrapContext;
 use core::arch::{asm, global_asm};
 
@@ -23,7 +27,9 @@ pub fn init_() {
 }
 
 #[unsafe(no_mangle)]
-pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+pub fn trap_handler() -> ! {
+    set_kernel_entry();
+    let cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
@@ -57,11 +63,50 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             );
         }
     }
-    cx
+    trap_return();
 }
 
 pub fn enable_timer_interrupt() {
     unsafe {
         sie::set_stimer();
+    }
+}
+
+fn set_kernel_entry() {
+    unsafe {
+        stvec::write(trap_from_kernel as usize, stvec::TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_from_kernel() -> ! {
+    panic!("a trap from kernel!");
+}
+
+fn set_user_trap_entry() {
+    unsafe {
+        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_return() -> ! {
+    set_user_trap_entry();
+    let trap_cx_ptr = TRAP_CONTEXT;
+    let user_satp = current_user_token();
+    extern "C" {
+        fn __alltraps();
+        fn __restore();
+    }
+    let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+    unsafe {
+        asm!(
+            "fence.i",
+            "jr {restore_va}",
+            restore_va = in(reg) restore_va,
+            in("a0") trap_cx_ptr,
+            in("a1") user_satp,
+            options(noreturn)
+        );
     }
 }

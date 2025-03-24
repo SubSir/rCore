@@ -1,5 +1,5 @@
 use crate::config::*;
-use alloc::alloc::{dealloc, GlobalAlloc, Layout};
+use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
 
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
@@ -40,13 +40,13 @@ unsafe impl GlobalAlloc for Buddy {
         } else {
             size /= BLOCK_SIZE;
         }
-        let mut align = _layout.align();
+        // let mut _align = _layout.align();
         // println!("align: {}", align);
-        if align < BLOCK_SIZE {
-            align = 1;
-        } else {
-            align /= BLOCK_SIZE;
-        }
+        // if align < BLOCK_SIZE {
+        //     align = 1;
+        // } else {
+        //     align /= BLOCK_SIZE;
+        // }
         let width = NODE_WIDTH - self.log_2(size);
         let mut i = width as isize;
         // println!("width: {}, size: {}, align: {}", i, size, align);
@@ -69,14 +69,14 @@ unsafe impl GlobalAlloc for Buddy {
         let addr = (father - (1 << width)) * BLOCK_SIZE * size;
         let base_ptr = HEAP_SPACE.as_mut_ptr();
         let target_ptr = base_ptr.add(addr);
-        // println!(
-        //     "[buddy] size: {:x}, target_ptr: {:x}, base_ptr: {:x}, allocated: {:x}, node: {}",
-        //     _layout.size(),
-        //     target_ptr as usize,
-        //     base_ptr as usize,
-        //     size * BLOCK_SIZE,
-        //     father
-        // );
+        println!(
+            "[buddy] size: {:x}, target_ptr: {:x}, base_ptr: {:x}, allocated: {:x}, node: {}",
+            _layout.size(),
+            target_ptr as usize,
+            base_ptr as usize,
+            size * BLOCK_SIZE,
+            father
+        );
         target_ptr
     }
 
@@ -92,12 +92,12 @@ unsafe impl GlobalAlloc for Buddy {
         let addr = ((_ptr as usize - base_ptr as usize) / BLOCK_SIZE / size) * size;
         let node = addr + (1 << width);
         let buddy = node ^ 1;
-        // println!(
-        //     "[buddy] size: {:X}, dealloc: {:x}, node: {}",
-        //     _layout.size(),
-        //     _ptr as usize,
-        //     node,
-        // );
+        println!(
+            "[buddy] size: {:X}, dealloc: {:x}, node: {}",
+            _layout.size(),
+            _ptr as usize,
+            node,
+        );
         NODE_LIST[node].used = false;
         if buddy == 0 {
             SIZE_TABEL[0] = 1;

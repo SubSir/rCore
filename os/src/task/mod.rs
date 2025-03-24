@@ -1,10 +1,11 @@
-use crate::config::MAX_APP_NUM;
+use crate::loader::get_app_data;
 use crate::sync::UPSafeCell;
+use crate::trap::TrapContext;
+use alloc::vec::Vec;
 use task::TaskControlBlock;
 
 mod context;
 mod switch;
-use crate::loader::init_app_cx;
 mod task;
 use crate::loader::get_num_app;
 use crate::task::context::TaskContext;
@@ -74,23 +75,40 @@ impl TaskManager {
             .map(|id| id % self.num_app)
             .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
     }
+
+    fn get_current_token(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].get_user_token()
+    }
+
+    fn get_current_trap_cx(&self) -> &mut TrapContext {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].get_trap_cx()
+    }
+}
+pub fn current_trap_cx() -> &'static mut TrapContext {
+    TASK_MANAGER.get_current_trap_cx()
+}
+
+pub fn current_user_token() -> usize {
+    TASK_MANAGER.get_current_token()
 }
 
 struct TaskManagerInner {
-    tasks: [TaskControlBlock; MAX_APP_NUM],
+    tasks: Vec<TaskControlBlock>,
     current_task: usize,
 }
 
 lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
+        println!("init TASK_MANAGER");
         let num_app = get_num_app();
-        let mut tasks = [TaskControlBlock {
-            task_status: TaskStatus::UnInit,
-            task_cx: TaskContext::zero_init(),
-        }; MAX_APP_NUM];
+        println!("num_app = {}", num_app);
+        let mut tasks: Vec<TaskControlBlock> = Vec::new();
         for i in 0..num_app {
-            tasks[i].task_cx = TaskContext::goto_restore(init_app_cx(i));
-            tasks[i].task_status = TaskStatus::Ready;
+            tasks.push(TaskControlBlock::new(get_app_data(i), i));
         }
         TaskManager {
             num_app,

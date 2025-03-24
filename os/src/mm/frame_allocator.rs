@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use super::address::{PhysAddr, PhysPageNum, VirtPageNum};
+use super::address::{PhysAddr, PhysPageNum};
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 trait FrameAllocator {

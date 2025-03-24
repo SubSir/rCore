@@ -77,7 +77,7 @@ gdbserver: build
 gdbclient:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1235'
 
-portclean:
-    @lsof -t -i :1235 | xargs -r kill -9 
+portclean: 
+	@lsof -t -i :1235 | xargs -r kill -9 
 
 .PHONY: build env kernel clean disasm disasm-vim run-inner gdbserver gdbclient qemu-version-check portclean

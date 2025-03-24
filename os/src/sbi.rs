@@ -1,7 +1,6 @@
 // os/src/sbi.rs
 use crate::sync::UPSafeCell;
 use lazy_static::*;
-use riscv::register::mhartid;
 
 unsafe impl Send for MemoryManager {}
 lazy_static! {
@@ -31,16 +30,16 @@ pub fn shutdown(failure: bool) -> ! {
 const MMIO_BASE: usize = 0x10000000;
 const RBR: usize = 0;
 const THR: usize = 0;
-const DLL: usize = 0;
+// const DLL: usize = 0;
 const IER: usize = 1;
-const DLM: usize = 1;
-const IIR: usize = 2;
+// const DLM: usize = 1;
+// const IIR: usize = 2;
 const FCR: usize = 2;
 const LCR: usize = 3;
-const MCR: usize = 4;
-const LSR: usize = 5;
-const MSR: usize = 6;
-const SCR: usize = 7;
+// const MCR: usize = 4;
+// const LSR: usize = 5;
+// const MSR: usize = 6;
+// const SCR: usize = 7;
 
 const IER_DISABLE_INTERRUPT: u8 = 0;
 const LCR_BAUD_LATCH: u8 = 1 << 7;
