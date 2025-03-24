@@ -6,6 +6,7 @@ use crate::mm::page_table::PTEFlags;
 use crate::mm::page_table::PageTable;
 use crate::mm::page_table::PageTableEntry;
 use crate::satp;
+use crate::sbi::MMIO_BASE;
 use crate::sync::UPSafeCell;
 use alloc::collections::btree_map::BTreeMap;
 use alloc::sync::Arc;
@@ -205,6 +206,16 @@ impl MemorySet {
             ),
             None,
         );
+        println!("mapping uart");
+        memory_set.push(
+            MapArea::new(
+                MMIO_BASE.into(),
+                (MMIO_BASE + 0x8).into(),
+                MapType::Identical,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
         println!("mapping finished");
         memory_set
     }
@@ -275,11 +286,9 @@ impl MemorySet {
         let satp = self.page_table.token();
         println!("satp: {:x}", satp);
         satp::write(satp);
-        println!("4");
         unsafe {
             asm!("sfence.vma");
         }
-        println!("5");
     }
 
     fn map_trampoline(&mut self) {

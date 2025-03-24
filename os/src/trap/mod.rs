@@ -37,7 +37,10 @@ pub fn trap_handler() -> ! {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
-        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
+        Trap::Exception(Exception::StoreFault)
+        | Trap::Exception(Exception::StorePageFault)
+        | Trap::Exception(Exception::LoadFault)
+        | Trap::Exception(Exception::LoadPageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
             exit_current_and_run_next();
         }
@@ -53,7 +56,7 @@ pub fn trap_handler() -> ! {
                 asm!("csrw sip, {}", in(reg) sip);
             }
             suspend_current_and_run_next();
-            // println!("[Timer] interrupt handled");
+            println!("[Timer] interrupt handled");
         }
         _ => {
             panic!(

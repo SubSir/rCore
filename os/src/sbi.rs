@@ -27,7 +27,7 @@ pub fn shutdown(failure: bool) -> ! {
     unreachable!()
 }
 
-const MMIO_BASE: usize = 0x10000000;
+pub const MMIO_BASE: usize = 0x10000000;
 const RBR: usize = 0;
 const THR: usize = 0;
 // const DLL: usize = 0;
