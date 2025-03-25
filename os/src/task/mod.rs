@@ -1,4 +1,5 @@
 use crate::loader::get_app_data;
+use crate::sbi;
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
@@ -47,7 +48,8 @@ impl TaskManager {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
         } else {
-            panic!("All applications completed!");
+            println!("All applications completed!");
+            sbi::shutdown(false);
         }
     }
 

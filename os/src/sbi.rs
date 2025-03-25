@@ -13,8 +13,8 @@ pub fn console_putchar(c: usize) {
     }
 }
 
+pub const VIRT_TEST: *mut u32 = 0x10_0000 as *mut u32;
 pub fn shutdown(failure: bool) -> ! {
-    const VIRT_TEST: *mut u32 = 0x10_0000 as *mut u32;
     let value;
     if failure {
         value = 0x3333;

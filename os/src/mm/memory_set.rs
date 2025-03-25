@@ -1,3 +1,5 @@
+use core::iter::Map;
+
 use super::address::*;
 use super::frame_allocator::*;
 use crate::asm;
@@ -6,7 +8,7 @@ use crate::mm::page_table::PTEFlags;
 use crate::mm::page_table::PageTable;
 use crate::mm::page_table::PageTableEntry;
 use crate::satp;
-use crate::sbi::MMIO_BASE;
+use crate::sbi::{MMIO_BASE, VIRT_TEST};
 use crate::sync::UPSafeCell;
 use alloc::collections::btree_map::BTreeMap;
 use alloc::sync::Arc;
@@ -124,6 +126,8 @@ extern "C" {
     fn ebss();
     fn ekernel();
     fn strampoline();
+    fn sheap();
+    fn eheap();
 }
 pub struct MemorySet {
     page_table: PageTable,
@@ -156,6 +160,7 @@ impl MemorySet {
             ".bss [{:#x}, {:#x})",
             sbss_with_stack as usize, ebss as usize
         );
+        println!(".heap [{:#x}, {:#x})]", sheap as usize, eheap as usize);
         println!("mapping .text section");
         memory_set.push(
             MapArea::new(
@@ -206,11 +211,31 @@ impl MemorySet {
             ),
             None,
         );
+        println!("mapping heap");
+        memory_set.push(
+            MapArea::new(
+                (sheap as usize).into(),
+                (eheap as usize).into(),
+                MapType::Identical,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
         println!("mapping uart");
         memory_set.push(
             MapArea::new(
                 MMIO_BASE.into(),
                 (MMIO_BASE + 0x8).into(),
+                MapType::Identical,
+                MapPermission::R | MapPermission::W,
+            ),
+            None,
+        );
+        println!("mapping virt_test");
+        memory_set.push(
+            MapArea::new(
+                (VIRT_TEST as usize).into(),
+                (VIRT_TEST as usize + 0x2).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),

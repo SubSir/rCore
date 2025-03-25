@@ -45,6 +45,12 @@ SECTIONS
 
     . = ALIGN(4K);
     ebss = .;
+
+    sheap = .;
+    .heap : ALIGN(4K) {
+        *(.heap)
+    }
+    eheap = .;
     ekernel = .;
 
     /DISCARD/ : {
