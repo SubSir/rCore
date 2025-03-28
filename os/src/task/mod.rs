@@ -6,6 +6,7 @@ use alloc::vec::Vec;
 use task::TaskControlBlock;
 
 mod context;
+mod pid;
 mod switch;
 mod task;
 use crate::loader::get_num_app;

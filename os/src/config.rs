@@ -21,8 +21,3 @@ pub const PA_WIDTH_SV39: usize = 56;
 pub const PPN_WIDTH_SV39: usize = PA_WIDTH_SV39 - PAGE_SIZE_BITS;
 pub const VA_WIDTH_SV39: usize = 39;
 // pub const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
-
-pub fn kernel_stack_position(appid: usize) -> (usize, usize) {
-    let top = USER_STACK_SIZE * appid + KERNEL_STACK_SIZE;
-    (top - KERNEL_STACK_SIZE, top)
-}
