@@ -13,6 +13,10 @@ pub fn console_putchar(c: usize) {
     }
 }
 
+pub fn console_getchar() -> usize {
+    unsafe { Memory_Managr.exclusive_access().read_char() as usize }
+}
+
 pub const VIRT_TEST: *mut u32 = 0x10_0000 as *mut u32;
 pub fn shutdown(failure: bool) -> ! {
     let value;

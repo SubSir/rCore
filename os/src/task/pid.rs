@@ -1,5 +1,5 @@
 use crate::{
-    config::{kernel_stack_position, KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE},
+    config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE},
     mm::{MapPermission, VirtAddr, KERNEL_SPACE},
     task::UPSafeCell,
 };
@@ -38,6 +38,10 @@ impl PidAllocator {
         );
         self.recycled.push(pid);
     }
+}
+
+pub fn pid_alloc() -> PidHandle {
+    PID_ALLOCATOR.exclusive_access().alloc()
 }
 
 lazy_static! {

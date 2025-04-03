@@ -1,5 +1,3 @@
-use core::iter::Map;
-
 use super::address::*;
 use super::frame_allocator::*;
 use crate::asm;
@@ -16,7 +14,7 @@ use alloc::vec::Vec;
 use bitflags::bitflags;
 use lazy_static::lazy_static;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum MapType {
     Identical,
     Framed,
@@ -112,6 +110,15 @@ impl MapArea {
             _ => {}
         }
         page_table.unmap(vpn);
+    }
+
+    pub fn from_another(another: &MapArea) -> Self {
+        Self {
+            vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
+            data_frames: BTreeMap::new(),
+            map_type: another.map_type,
+            map_perm: another.map_perm,
+        }
     }
 }
 
@@ -354,6 +361,27 @@ impl MemorySet {
             area.unmap(&mut self.page_table);
             self.areas.remove(idx);
         }
+    }
+
+    pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {
+        let mut memory_set = MemorySet::new_bare();
+        memory_set.map_trampoline();
+        for area in user_space.areas.iter() {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn
+                    .get_bytes_array()
+                    .copy_from_slice(&src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
+
+    pub fn recycle_data_pages(&mut self) {
+        self.areas.clear();
     }
 }
 

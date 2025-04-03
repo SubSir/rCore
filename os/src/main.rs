@@ -35,8 +35,12 @@ pub fn rust_main() -> ! {
     mm::init();
     println!("[kernel] memory init");
     mm::remap_test();
-    // trap::init_();
-    task::run_first_task();
+    task::add_initproc();
+    println!("after initproc!");
+    trap::init_();
+    loader::list_apps();
+    task::processor::run_tasks();
+    panic!("Unreachable in rust_main!");
 }
 
 fn clear_bss() {

@@ -1,9 +1,10 @@
 mod context;
 
+use crate::task::processor::current_user_token;
 use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
-    task::{current_trap_cx, current_user_token, suspend_current_and_run_next},
+    task::{processor::current_trap_cx, suspend_current_and_run_next},
 };
 pub use context::TrapContext;
 use core::arch::{asm, global_asm};
@@ -29,34 +30,38 @@ pub fn init_() {
 #[unsafe(no_mangle)]
 pub fn trap_handler() -> ! {
     set_kernel_entry();
-    let cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            let mut cx = current_trap_cx();
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            cx = current_trap_cx();
+            cx.x[10] = result as usize;
         }
         Trap::Exception(Exception::StoreFault)
         | Trap::Exception(Exception::StorePageFault)
+        | Trap::Exception(Exception::InstructionFault)
+        | Trap::Exception(Exception::InstructionPageFault)
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
-            exit_current_and_run_next();
+            exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            exit_current_and_run_next();
+            exit_current_and_run_next(-3);
         }
         Trap::Interrupt(Interrupt::SupervisorSoft) => {
-            println!("[Timer] interrupt in application, kernel suspend it.");
+            // println!("[Timer] interrupt in application, kernel suspend it.");
             let mut sip = sip::read().bits();
             sip = sip & !(1 << 1);
             unsafe {
                 asm!("csrw sip, {}", in(reg) sip);
             }
             suspend_current_and_run_next();
-            println!("[Timer] interrupt handled");
+            // println!("[Timer] interrupt handled");
         }
         _ => {
             panic!(
