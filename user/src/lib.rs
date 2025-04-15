@@ -6,6 +6,7 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+use bitflags::bitflags;
 use buddy_system_allocator::LockedHeap;
 use core::ptr::addr_of_mut;
 use syscall::*;
@@ -38,6 +39,22 @@ fn main() -> i32 {
     panic!("Cannot find main!");
 }
 
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY = 0;
+        const WRONLY = 1 << 0;
+        const RDWR = 1 << 1;
+        const CREATE = 1 << 9;
+        const TRUNC = 1 << 10;
+    }
+}
+
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
+}
 pub fn read(fd: usize, buffer: &mut [u8]) -> isize {
     sys_read(fd, buffer)
 }
