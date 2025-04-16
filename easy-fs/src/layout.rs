@@ -301,6 +301,41 @@ impl DiskInode {
         }
         read_size
     }
+
+    pub fn write_at(
+        &mut self,
+        offset: usize,
+        buf: &[u8],
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> usize {
+        let mut start = offset;
+        let end = (offset + buf.len()).min(self.size as usize);
+        assert!(start <= end);
+        let mut start_block = start / BLOCK_SZ;
+        let mut write_size = 0usize;
+        loop {
+            let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
+            end_current_block = end_current_block.min(end);
+            let block_write_size = end_current_block - start;
+            get_block_cache(
+                self.get_block_id(start_block as u32, block_device) as usize,
+                Arc::clone(block_device),
+            )
+            .lock()
+            .modify(0, |data_block: &mut DataBlock| {
+                let src = &buf[write_size..write_size + block_write_size];
+                let dst = &mut data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_write_size];
+                dst.copy_from_slice(src);
+            });
+            write_size += block_write_size;
+            if end_current_block == end {
+                break;
+            }
+            start_block += 1;
+            start = end_current_block;
+        }
+        write_size
+    }
 }
 
 #[repr(C)]
@@ -310,7 +345,7 @@ pub struct DirEnrtry {
 }
 
 impl DirEnrtry {
-    pub fn emptr() -> Self {
+    pub fn empty() -> Self {
         DirEnrtry {
             name: [0; NAME_LENGTH_LIMIT + 1],
             inode_number: 0,
