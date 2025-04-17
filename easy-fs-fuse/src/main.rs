@@ -1,6 +1,9 @@
+use clap::App;
+use clap::Arg;
 use easy_fs::{BlockDevice, EasyFileSystem};
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::fs::read_dir;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 const BLOCK_SZ: usize = 512;
@@ -85,4 +88,61 @@ fn efs_test() -> std::io::Result<()> {
     random_str_test(2000 * BLOCK_SZ);
 
     Ok(())
+}
+
+fn easy_fs_pack() -> std::io::Result<()> {
+    let matches = App::new("EasyFileSystem packer")
+        .arg(
+            Arg::with_name("source")
+                .short("s")
+                .long("source")
+                .takes_value(true)
+                .help("Executable source dir(with backslash)"),
+        )
+        .arg(
+            Arg::with_name("target")
+                .short("t")
+                .long("target")
+                .takes_value(true)
+                .help("Executable target dir(with backslash)"),
+        )
+        .get_matches();
+    let src_path = matches.value_of("source").unwrap();
+    let target_path = matches.value_of("target").unwrap();
+    println!("src_path: {}, target_path: {}", src_path, target_path);
+    let block_file = Arc::new(BlockFile(Mutex::new({
+        let f = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(format!("{}{}", target_path, "fs.img"))?;
+        f.set_len(8192 * 512).unwrap();
+        f
+    })));
+    let efs = EasyFileSystem::create(block_file.clone(), 8192, 1);
+    let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
+    let apps: Vec<_> = read_dir(src_path)
+        .unwrap()
+        .into_iter()
+        .map(|dir_entry| {
+            let mut name_with_ext = dir_entry.unwrap().file_name().into_string().unwrap();
+            name_with_ext.drain(name_with_ext.find('.').unwrap()..name_with_ext.len());
+            name_with_ext
+        })
+        .collect();
+    for app in apps {
+        let mut host_file = File::open(format!("{}{}", target_path, app)).unwrap();
+        let mut all_data = Vec::<u8>::new();
+        host_file.read_to_end(&mut all_data).unwrap();
+        let inode = root_inode.create(&app.as_str()).unwrap();
+        inode.write_at(0, all_data.as_slice());
+    }
+    for app in root_inode.ls() {
+        println!("{}", app);
+    }
+    Ok(())
+}
+
+fn main() {
+    easy_fs_pack().expect("Error when packing easy-fs!");
 }

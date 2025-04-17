@@ -1,6 +1,7 @@
 use core::cell::RefMut;
 
 use crate::config::*;
+use crate::fs::File;
 use crate::mm::*;
 use crate::task::context::TaskContext;
 use crate::task::pid::pid_alloc;
@@ -10,6 +11,7 @@ use crate::trap::trap_handler;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use alloc::sync::Weak;
+use alloc::vec;
 use alloc::vec::Vec;
 
 use super::pid::PidHandle;
@@ -22,6 +24,7 @@ pub struct TaskControlBlockInner {
     pub parent: Option<Weak<TaskControlBlock>>,
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
+    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 }
 
 impl TaskControlBlockInner {
@@ -39,6 +42,14 @@ impl TaskControlBlockInner {
 
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
+    }
+
+    pub fn alloc_fd(&mut self) -> usize {
+        if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
+            return fd;
+        }
+        self.fd_table.push(None);
+        return self.fd_table.len() - 1;
     }
 }
 
@@ -83,6 +94,11 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: vec![
+                        Some(Arc::new(crate::fs::Stdin)),
+                        Some(Arc::new(crate::fs::Stdout)),
+                        Some(Arc::new(crate::fs::Stdout)),
+                    ],
                 })
             },
         };
@@ -121,6 +137,11 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: vec![
+                        Some(Arc::new(crate::fs::Stdin)),
+                        Some(Arc::new(crate::fs::Stdout)),
+                        Some(Arc::new(crate::fs::Stdout)),
+                    ],
                 })
             },
         });

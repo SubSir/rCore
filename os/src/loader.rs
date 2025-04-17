@@ -54,11 +54,3 @@ pub fn get_app_data_by_name(name: &str) -> Option<&'static [u8]> {
         .find(|&app_id| APP_NAMES[app_id] == name)
         .map(|i| get_app_data(i))
 }
-
-pub fn list_apps() {
-    println!("/**** APPS ****");
-    for app in APP_NAMES.iter() {
-        println!("{}", app);
-    }
-    println!("**************/")
-}

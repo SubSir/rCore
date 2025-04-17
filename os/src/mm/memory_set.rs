@@ -228,11 +228,11 @@ impl MemorySet {
             ),
             None,
         );
-        println!("mapping uart");
+        println!("mapping mmio");
         memory_set.push(
             MapArea::new(
                 MMIO_BASE.into(),
-                (MMIO_BASE + 0x8).into(),
+                (MMIO_BASE + 0x1000).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),
@@ -391,6 +391,10 @@ lazy_static! {
             UPSafeCell::new(MemorySet::new_kernel())
         }
     });
+}
+
+pub fn kernel_token() -> usize {
+    KERNEL_SPACE.exclusive_access().token()
 }
 
 pub fn remap_test() {
