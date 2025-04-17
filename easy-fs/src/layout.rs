@@ -1,16 +1,12 @@
 use alloc::{sync::Arc, vec::Vec};
 
-use crate::{
-    BLOCK_SZ,
-    block_cache::{self, get_block_cache},
-    block_dev::BlockDevice,
-};
+use crate::{BLOCK_SZ, block_cache::get_block_cache, block_dev::BlockDevice};
 const EFS_MAGIC: u32 = 0x3b800001;
 const INODE_DIRECT_COUNT: usize = 28;
 const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
 const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
 const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
-const INDIRECT1_BOUND: usize = INODE_DIRECT_COUNT + DIRECT_BOUND;
+const INDIRECT1_BOUND: usize = INODE_INDIRECT1_COUNT + DIRECT_BOUND;
 const NAME_LENGTH_LIMIT: usize = 27;
 pub const DIRENT_SZ: usize = 32;
 type IndirectBlock = [u32; BLOCK_SZ / 4];
@@ -339,14 +335,14 @@ impl DiskInode {
 }
 
 #[repr(C)]
-pub struct DirEnrtry {
+pub struct DirEntry {
     name: [u8; NAME_LENGTH_LIMIT + 1],
     inode_number: u32,
 }
 
-impl DirEnrtry {
+impl DirEntry {
     pub fn empty() -> Self {
-        DirEnrtry {
+        DirEntry {
             name: [0; NAME_LENGTH_LIMIT + 1],
             inode_number: 0,
         }
@@ -371,7 +367,7 @@ impl DirEnrtry {
 
     pub fn name(&self) -> &str {
         let len = (0usize..).find(|i| self.name[*i] == 0).unwrap();
-        unsafe { core::str::from_utf8(&self.name[..len]).unwrap() }
+        core::str::from_utf8(&self.name[..len]).unwrap()
     }
 
     pub fn inode_number(&self) -> u32 {

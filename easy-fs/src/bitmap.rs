@@ -38,7 +38,7 @@ impl Bitmap {
                     .iter()
                     .enumerate()
                     .find(|(_, bits64)| **bits64 != u64::MAX)
-                    .map(|(bits64_pos, bits64)| (bits64_pos, bits64.trailing_zeros() as usize))
+                    .map(|(bits64_pos, bits64)| (bits64_pos, bits64.trailing_ones() as usize))
                 {
                     bitmap_block[bits64_pos] |= 1u64 << inner_pos;
                     Some(block_id * BLOCK_BITS + bits64_pos * 64 + inner_pos as usize)
@@ -46,7 +46,7 @@ impl Bitmap {
                     None
                 }
             });
-            if pos.is_none() {
+            if pos.is_some() {
                 return pos;
             }
         }

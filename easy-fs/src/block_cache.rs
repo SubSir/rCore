@@ -99,9 +99,9 @@ impl BlockCacheManager {
                     .find(|(_, pair)| Arc::strong_count(&pair.1) == 1)
                 {
                     self.queue.drain(idx..=idx);
+                } else {
+                    panic!("block cache queue full!");
                 }
-            } else {
-                panic!("block cache queue full!");
             }
         }
         let block_cache = Arc::new(Mutex::new(BlockCache::new(
@@ -125,4 +125,11 @@ pub fn get_block_cache(
     BLOCK_CACHE_MANAGER
         .lock()
         .get_block_cache(block_id, block_device)
+}
+
+pub fn block_cache_sync_all() {
+    let manager = BLOCK_CACHE_MANAGER.lock();
+    for (_, cache) in manager.queue.iter() {
+        cache.lock().sync();
+    }
 }

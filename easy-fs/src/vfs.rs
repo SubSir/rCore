@@ -6,7 +6,7 @@ use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
     efs::EasyFileSystem,
-    layout::{DIRENT_SZ, DirEnrtry, DiskInode},
+    layout::{DIRENT_SZ, DirEntry, DiskInode},
 };
 
 pub struct Inode {
@@ -60,7 +60,7 @@ impl Inode {
     fn find_inode_id(&self, name: &str, disk_inode: &DiskInode) -> Option<u32> {
         assert!(disk_inode.is_dir());
         let file_count = (disk_inode.size as usize) / DIRENT_SZ;
-        let mut dirent = DirEnrtry::empty();
+        let mut dirent = DirEntry::empty();
         for i in 0..file_count {
             assert_eq!(
                 disk_inode.read_at(DIRENT_SZ * i, dirent.as_bytes_mut(), &self.block_device),
@@ -79,7 +79,7 @@ impl Inode {
             let file_count = (disk_inode.size as usize) / DIRENT_SZ;
             let mut v: Vec<String> = Vec::new();
             for i in 0..file_count {
-                let mut dirent = DirEnrtry::empty();
+                let mut dirent = DirEntry::empty();
                 assert_eq!(
                     disk_inode.read_at(DIRENT_SZ * i, dirent.as_bytes_mut(), &self.block_device),
                     DIRENT_SZ
@@ -112,7 +112,7 @@ impl Inode {
             let file_count = (root_inode.size as usize) / DIRENT_SZ;
             let new_size = (file_count + 1) * DIRENT_SZ;
             self.increase_size(new_size as u32, root_inode, &mut fs);
-            let dirent = DirEnrtry::new(name, new_inode_block_id);
+            let dirent = DirEntry::new(name, new_inode_block_id);
             root_inode.write_at(
                 file_count * DIRENT_SZ,
                 dirent.as_bytes(),
