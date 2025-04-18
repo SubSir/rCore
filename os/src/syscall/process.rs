@@ -1,6 +1,5 @@
 use crate::fs::open_file;
 use crate::fs::OpenFlags;
-use crate::loader::get_app_data_by_name;
 use crate::mm::translated_refmut;
 use crate::mm::translated_str;
 use crate::task::exit_current_and_run_next;

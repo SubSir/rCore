@@ -31,7 +31,7 @@ impl File for Stdin {
         1
     }
 
-    fn write(&self, buf: crate::mm::UserBuffer) -> usize {
+    fn write(&self, _: crate::mm::UserBuffer) -> usize {
         panic!("Cannot write to stdin!");
     }
 }
@@ -45,7 +45,7 @@ impl File for Stdout {
         true
     }
 
-    fn read(&self, buf: crate::mm::UserBuffer) -> usize {
+    fn read(&self, _: crate::mm::UserBuffer) -> usize {
         panic!("Cannot read from stdout!");
     }
 

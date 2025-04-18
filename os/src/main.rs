@@ -10,7 +10,6 @@ mod config;
 mod driver;
 mod fs;
 mod lang_items;
-mod loader;
 mod mm;
 mod sbi;
 mod sync;

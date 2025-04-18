@@ -232,7 +232,7 @@ impl MemorySet {
         memory_set.push(
             MapArea::new(
                 MMIO_BASE.into(),
-                (MMIO_BASE + 0x1000).into(),
+                (MMIO_BASE + 0x2000).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),

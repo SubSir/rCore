@@ -20,7 +20,6 @@ use switch::__switch;
 lazy_static! {
     pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
         let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
-        println!("6");
         let v = inode.read_all();
         TaskControlBlock::new(v.as_slice())
     });
