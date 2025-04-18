@@ -242,7 +242,7 @@ impl MemorySet {
         memory_set.push(
             MapArea::new(
                 (VIRT_TEST as usize).into(),
-                (VIRT_TEST as usize + 0x2).into(),
+                (VIRT_TEST as usize + 0x2000).into(),
                 MapType::Identical,
                 MapPermission::R | MapPermission::W,
             ),

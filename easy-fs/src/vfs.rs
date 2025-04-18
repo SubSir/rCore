@@ -112,7 +112,7 @@ impl Inode {
             let file_count = (root_inode.size as usize) / DIRENT_SZ;
             let new_size = (file_count + 1) * DIRENT_SZ;
             self.increase_size(new_size as u32, root_inode, &mut fs);
-            let dirent = DirEntry::new(name, new_inode_block_id);
+            let dirent = DirEntry::new(name, new_inode_id);
             root_inode.write_at(
                 file_count * DIRENT_SZ,
                 dirent.as_bytes(),

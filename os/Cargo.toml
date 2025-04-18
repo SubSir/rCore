@@ -13,4 +13,3 @@ virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "4e
 
 [profile.release]
 debug = true
-opt-level = 0
