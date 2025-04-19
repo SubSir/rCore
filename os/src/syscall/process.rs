@@ -61,8 +61,9 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     if let Some(data) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = data.read_all();
         let task = current_task().unwrap();
+        let argc = args_vec.len();
         task.exec(all_data.as_slice(), args_vec);
-        0
+        argc as isize
     } else {
         -1
     }
