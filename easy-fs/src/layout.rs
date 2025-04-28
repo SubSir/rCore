@@ -261,6 +261,185 @@ impl DiskInode {
         v
     }
 
+    pub fn decrease_size(
+        &mut self,
+        new_size: u32,
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> Vec<u32> {
+        // Calculate old and new block counts
+        let old_blocks = self.data_blocks();
+        self.size = new_size;
+        let new_blocks = self.data_blocks();
+
+        if new_blocks >= old_blocks {
+            return Vec::new();
+        }
+
+        let mut freed_blocks = Vec::new();
+        let mut current_blocks = new_blocks as usize;
+        let mut total_blocks = old_blocks as usize;
+
+        while current_blocks < total_blocks.min(INODE_DIRECT_COUNT) {
+            freed_blocks.push(self.direct[current_blocks]);
+            self.direct[current_blocks] = 0;
+            current_blocks += 1;
+        }
+
+        if total_blocks > INODE_DIRECT_COUNT {
+            if current_blocks == INODE_DIRECT_COUNT {
+                if new_blocks <= INODE_DIRECT_COUNT as u32 {
+                    freed_blocks.push(self.indirect1);
+                    get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+                        .lock()
+                        .modify(0, |indirect_block: &mut IndirectBlock| {
+                            for block in indirect_block
+                                .iter()
+                                .take(total_blocks - INODE_DIRECT_COUNT)
+                            {
+                                freed_blocks.push(*block);
+                            }
+                        });
+                    self.indirect1 = 0;
+                    return freed_blocks;
+                }
+                current_blocks = 0;
+                total_blocks -= INODE_DIRECT_COUNT;
+            } else {
+                return freed_blocks;
+            }
+        } else {
+            return freed_blocks;
+        }
+
+        if total_blocks > 0 {
+            get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+                .lock()
+                .modify(0, |indirect_block: &mut IndirectBlock| {
+                    while current_blocks < total_blocks.min(INODE_INDIRECT1_COUNT) {
+                        freed_blocks.push(indirect_block[current_blocks]);
+                        indirect_block[current_blocks] = 0;
+                        current_blocks += 1;
+                    }
+                });
+
+            if total_blocks > INODE_INDIRECT1_COUNT {
+                if current_blocks == INODE_INDIRECT1_COUNT {
+                    if new_blocks <= (INODE_DIRECT_COUNT + INODE_INDIRECT1_COUNT) as u32 {
+                        freed_blocks.push(self.indirect2);
+                        let a1 = total_blocks / INODE_INDIRECT1_COUNT;
+                        let b1 = total_blocks % INODE_INDIRECT1_COUNT;
+
+                        get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+                            .lock()
+                            .modify(0, |indirect2: &mut IndirectBlock| {
+                                for entry in indirect2.iter().take(a1) {
+                                    freed_blocks.push(*entry);
+                                    get_block_cache(*entry as usize, Arc::clone(block_device))
+                                        .lock()
+                                        .modify(0, |indirect1: &mut IndirectBlock| {
+                                            for block in indirect1.iter() {
+                                                freed_blocks.push(*block);
+                                            }
+                                        });
+                                }
+                                if b1 > 0 {
+                                    freed_blocks.push(indirect2[a1]);
+                                    get_block_cache(
+                                        indirect2[a1] as usize,
+                                        Arc::clone(block_device),
+                                    )
+                                    .lock()
+                                    .modify(
+                                        0,
+                                        |indirect1: &mut IndirectBlock| {
+                                            for block in indirect1.iter().take(b1) {
+                                                freed_blocks.push(*block);
+                                            }
+                                        },
+                                    );
+                                }
+                            });
+                        self.indirect2 = 0;
+                        return freed_blocks;
+                    }
+                    current_blocks = 0;
+                    total_blocks -= INODE_INDIRECT1_COUNT;
+                } else {
+                    return freed_blocks;
+                }
+            } else {
+                return freed_blocks;
+            }
+        } else {
+            return freed_blocks;
+        }
+
+        if total_blocks > 0 {
+            let a0 = current_blocks / INODE_INDIRECT1_COUNT;
+            let b0 = current_blocks % INODE_INDIRECT1_COUNT;
+            let a1 = total_blocks / INODE_INDIRECT1_COUNT;
+            let b1 = total_blocks % INODE_INDIRECT1_COUNT;
+
+            get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+                .lock()
+                .modify(0, |indirect2: &mut IndirectBlock| {
+                    if a0 < a1 {
+                        for entry in indirect2.iter_mut().skip(a0 + 1).take(a1 - a0 - 1) {
+                            freed_blocks.push(*entry);
+                            get_block_cache(*entry as usize, Arc::clone(block_device))
+                                .lock()
+                                .modify(0, |indirect1: &mut IndirectBlock| {
+                                    for block in indirect1.iter() {
+                                        freed_blocks.push(*block);
+                                    }
+                                });
+                            *entry = 0;
+                        }
+
+                        if b0 > 0 {
+                            freed_blocks.push(indirect2[a0]);
+                            get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
+                                .lock()
+                                .modify(0, |indirect1: &mut IndirectBlock| {
+                                    for block in indirect1.iter().skip(b0) {
+                                        freed_blocks.push(*block);
+                                    }
+                                });
+                            indirect2[a0] = 0;
+                        }
+
+                        if b1 > 0 {
+                            freed_blocks.push(indirect2[a1]);
+                            get_block_cache(indirect2[a1] as usize, Arc::clone(block_device))
+                                .lock()
+                                .modify(0, |indirect1: &mut IndirectBlock| {
+                                    for block in indirect1.iter().skip(b1) {
+                                        freed_blocks.push(*block);
+                                    }
+                                });
+                            indirect2[a1] = 0;
+                        }
+                    } else if b0 < b1 {
+                        get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
+                            .lock()
+                            .modify(0, |indirect1: &mut IndirectBlock| {
+                                for block in indirect1.iter_mut().skip(b0).take(b1 - b0) {
+                                    freed_blocks.push(*block);
+                                    *block = 0;
+                                }
+                            });
+                    }
+                });
+
+            if new_blocks <= (INODE_DIRECT_COUNT + INODE_INDIRECT1_COUNT) as u32 {
+                freed_blocks.push(self.indirect2);
+                self.indirect2 = 0;
+            }
+        }
+
+        freed_blocks
+    }
+
     pub fn read_at(
         &self,
         offset: usize,

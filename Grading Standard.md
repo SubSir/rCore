@@ -1,0 +1,54 @@
+# Grading Standard
+
+## Standard
+
+- [x] Bootloader  
+  - [x] Initialization  
+  - [x] Entering S mode for the kernel  
+- [ ] Allocator  
+  - [x] Buddy allocator  
+  - [x] Frame allocator (or any fine-grained allocator for any size of memory)  
+  - [ ] SLAB (Optional) 
+- [x] Page table  
+  - [x] For kernel  
+  - [x] For each user process  
+- [x] Console  
+  - [x] Read  
+  - [x] Write  
+- [ ] Message & data transfer  
+  - [x] User \-\> Kernel (syscall) 
+  - [x] Kernel \-\> User (syscall) 
+  - [?] Kernel \-\> Kernel  
+  - [x] User \-\> User (pipe) 
+- [ ] Process  
+  - [x] Process loading  
+    - [x] ELF parsing  
+    - [x] Sections loading (ref to page table)  
+  - [x] Syscall  
+    - [x] Kick off a new process (Something like fork and exec)  
+    - [x] Wait for child processes (Something like wait)  
+    - [x] Exit from a process (Something like exit)  
+  - [x] Process manager  
+    - [x] Process creation  
+    - [x] Process termination  
+  - [ ] Scheduler  
+    - [x] Context switch  
+    - [x] Scheduling mechanism (must be time sharing)  
+      - [ ] Advanced scheduling mechanism (Optional)
+    - [x] Timer interrupt 
+    - [ ] IPI (Optional)
+  - [x] IPC 
+    - [x] Pipe 
+- [ ] Synchronization primitives  
+  - [ ] Mutex  
+  - [ ] Conditional variables (Optional) 
+- [ ] File system (Optional) 
+  - [x] File/directory creation/deletion   
+  - [ ] File/directory renaming  
+  - [x] File read  
+  - [x] File write  
+  - [ ] File/directory moving  
+  - [ ] (optional) access control, atime/mtime/…  
+- [ ] Multicore (Optional) 
+- [ ] Driver (Optional)
+
