@@ -44,10 +44,10 @@
   - [ ] Conditional variables (Optional) 
 - [ ] File system (Optional) 
   - [x] File/directory creation/deletion   
-  - [ ] File/directory renaming  
+  - [x] File/directory renaming  
   - [x] File read  
   - [x] File write  
-  - [ ] File/directory moving  
+  - [x] File/directory moving  
   - [ ] (optional) access control, atime/mtime/…  
 - [ ] Multicore (Optional) 
 - [ ] Driver (Optional)

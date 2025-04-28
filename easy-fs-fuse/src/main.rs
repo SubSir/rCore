@@ -1,5 +1,6 @@
 use clap::App;
 use clap::Arg;
+use easy_fs::Inode;
 use easy_fs::{BlockDevice, EasyFileSystem};
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -107,10 +108,13 @@ fn efs_test() -> std::io::Result<()> {
     // cd .. 测试
     let root_node2 = dir.cd("../").unwrap();
     root_node2.mkdir("filc");
-    assert!(root_node2.find("filc").is_some());
+    for name in root_node2.ls() {
+        println!("/root_node2/ {}", name);
+    }
     for name in root_inode.ls() {
         println!("/ {}", name);
     }
+    assert!(root_inode.find("filc").is_some());
 
     // remove目录/空目录/非空目录
     assert!(dir.remove("dira"), "remove file in dir should succeed");
@@ -137,9 +141,104 @@ fn efs_test() -> std::io::Result<()> {
 
     // cd嵌套和..多次
     let root_by_multics = dir.cd("../../").unwrap();
-    assert!(Arc::ptr_eq(&root_inode, &root_by_multics));
+    for name in root_by_multics.ls() {
+        println!("/root_by_multics/ {}", name);
+    }
 
-    // 其余内容还是原样......
+    for name in root_inode.ls() {
+        println!("/root_inode/ {}", name);
+    }
+
+    assert!(Inode::same_inode(&root_inode, &root_by_multics));
+
+    // ===== Inode mv 方法测试 Start =====
+    println!("--- mv method test ---");
+    // 1. 简单重命名文件
+    root_inode.create("mv_file1");
+
+    assert!(
+        root_inode.mv("mv_file1", "mv_file2"),
+        "mv rename file should succeed"
+    );
+
+    assert!(
+        root_inode.find("mv_file1").is_none(),
+        "old name should not exist after mv"
+    );
+    assert!(
+        root_inode.find("mv_file2").is_some(),
+        "new name should exist after mv"
+    );
+
+    // 2. mv 不存在文件，应该失败
+    assert!(
+        !root_inode.mv("no_such_file", "mv_file3"),
+        "mv non-existent file should fail"
+    );
+
+    // 3. 目标名字已存在，mv 应该失败（假定你的实现这样设计，如果目标若已存在不得覆盖）
+    root_inode.create("mv_file3");
+    assert!(
+        !root_inode.mv("mv_file3", "mv_file2"),
+        "mv to existing filename should fail"
+    );
+
+    // 4. 目录重命名
+    root_inode.mkdir("old_dir");
+    assert!(
+        root_inode.mv("old_dir", "new_dir"),
+        "mv dir rename should succeed"
+    );
+    assert!(root_inode.find("old_dir").is_none());
+    assert!(root_inode.find("new_dir").is_some());
+
+    // 5. 子目录内部移动
+    let new_dir = root_inode.cd("new_dir").unwrap();
+    new_dir.create("inner_file");
+    assert!(
+        root_inode.mv("new_dir/inner_file", "mv_inner_file"),
+        "mv file from subdir to root"
+    );
+    assert!(root_inode.find("mv_inner_file").is_some());
+    assert!(new_dir.find("inner_file").is_none());
+
+    // 6. 跨目录移动：重命名到子目录下
+    root_inode.create("mv_file4");
+    assert!(
+        new_dir.mv("../mv_file4", "movedfile"),
+        "mv跨目录到当前目录应该成功"
+    );
+    assert!(new_dir.find("movedfile").is_some());
+    assert!(root_inode.find("mv_file4").is_none());
+
+    // 7. 不能移动目录到自身子目录（如果你有实现相关保护）
+    root_inode.mkdir("mv_parent");
+    let mv_parent = root_inode.cd("mv_parent").unwrap();
+    println!("mv_parent:");
+    mv_parent.mkdir("child_dir");
+    assert!(
+        !root_inode.mv("mv_parent", "mv_parent/child_dir/newname"),
+        "mv parent to its child should fail"
+    );
+
+    // 8. 目录重命名后, 能正常用
+    assert!(root_inode.mv("mv_parent", "mv_parent2"));
+    assert!(root_inode.find("mv_parent2").is_some());
+    assert!(
+        root_inode
+            .cd("mv_parent2")
+            .unwrap()
+            .find("child_dir")
+            .is_some()
+    );
+
+    // 输出最终结构便于人工确认
+    println!("final root_inode ls:");
+    for name in root_inode.ls() {
+        println!("/ {}", name);
+    }
+    // ===== Inode mv 方法测试 End =====
+
     let filea = root_inode.find("filea").unwrap();
     let greet_str = "Hello, world!";
     filea.write_at(0, greet_str.as_bytes());

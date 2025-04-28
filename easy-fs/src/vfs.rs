@@ -14,7 +14,6 @@ pub struct Inode {
     block_offset: usize,
     fs: Arc<Mutex<EasyFileSystem>>,
     block_device: Arc<dyn BlockDevice>,
-    upper_inode: Option<Arc<Inode>>,
 }
 
 impl Inode {
@@ -23,14 +22,12 @@ impl Inode {
         block_offset: usize,
         fs: Arc<Mutex<EasyFileSystem>>,
         block_device: Arc<dyn BlockDevice>,
-        upper_inode: Option<Arc<Inode>>,
     ) -> Self {
         Self {
             block_id: block_id as usize,
             block_offset,
             fs,
             block_device,
-            upper_inode,
         }
     }
     fn read_dist_inode<V>(&self, f: impl FnOnce(&DiskInode) -> V) -> V {
@@ -55,7 +52,6 @@ impl Inode {
                     block_offset,
                     self.fs.clone(),
                     self.block_device.clone(),
-                    Some(self.clone()),
                 ))
             })
         })
@@ -85,12 +81,26 @@ impl Inode {
         None
     }
 
-    fn parent(&self) -> Option<Arc<Inode>> {
-        if let Some(upper_inode) = self.upper_inode.clone() {
-            Some(upper_inode)
-        } else {
-            None
-        }
+    pub fn parent(&self) -> Arc<Inode> {
+        let fs = self.fs.lock();
+        let inode_id = self.read_dist_inode(|disk_inode| disk_inode.parent);
+        let (block_id, block_offset) = fs.get_disk_inode_pos(inode_id);
+        Arc::new(Self::new(
+            block_id,
+            block_offset,
+            self.fs.clone(),
+            self.block_device.clone(),
+        ))
+    }
+
+    pub fn edit_parent(&self, upper_inode: Arc<Inode>) {
+        let fs = self.fs.lock();
+        let inode_id = upper_inode.inode_id(&fs);
+        self.modify_dist_inode(|disk_inode| disk_inode.parent = inode_id);
+    }
+
+    pub fn inode_id(&self, fs: &MutexGuard<EasyFileSystem>) -> u32 {
+        fs.get_inode_id(self.block_id as u32, self.block_offset)
     }
 
     pub fn ls(&self) -> Vec<String> {
@@ -113,7 +123,7 @@ impl Inode {
     pub fn create(self: &Arc<Self>, name: &str) -> Option<Arc<Inode>> {
         let mut fs = self.fs.lock();
         if self
-            .modify_dist_inode(|root_inode| self.find_inode_id(name, root_inode))
+            .read_dist_inode(|root_inode| self.find_inode_id(name, root_inode))
             .is_some()
         {
             return None;
@@ -138,19 +148,21 @@ impl Inode {
         });
 
         let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
-        Some(Arc::new(Self::new(
+        let new_inode = Arc::new(Self::new(
             block_id,
             block_offset,
             self.fs.clone(),
             self.block_device.clone(),
-            Some(self.clone()),
-        )))
+        ));
+        drop(fs);
+        new_inode.edit_parent(self.clone());
+        Some(new_inode)
     }
 
     pub fn mkdir(self: &Arc<Self>, name: &str) -> Option<Arc<Inode>> {
         let mut fs = self.fs.lock();
         if self
-            .modify_dist_inode(|root_inode| {
+            .read_dist_inode(|root_inode| {
                 assert!(root_inode.is_dir());
                 self.find_inode_id(name, root_inode)
             })
@@ -178,29 +190,29 @@ impl Inode {
         });
 
         let (block_id, block_offset) = fs.get_disk_inode_pos(new_inode_id);
-        Some(Arc::new(Self::new(
+        let new_inode = Arc::new(Self::new(
             block_id,
             block_offset,
             self.fs.clone(),
             self.block_device.clone(),
-            Some(self.clone()),
-        )))
+        ));
+        drop(fs);
+        new_inode.edit_parent(self.clone());
+        Some(new_inode)
     }
 
     pub fn cd(self: &Arc<Self>, path: &str) -> Option<Arc<Inode>> {
-        if path == "/" {
-            return Some(Arc::new(EasyFileSystem::root_inode(&self.fs)));
-        }
-        let mut inode = self.clone();
+        let mut inode = if path.starts_with('/') {
+            Arc::new(EasyFileSystem::root_inode(&self.fs))
+        } else {
+            self.clone()
+        };
         for token in path.split('/') {
             if token == "." || token == "" {
                 continue;
             }
             if token == ".." {
-                inode = match inode.parent() {
-                    Some(parent) => parent,
-                    None => return Some(inode.clone()),
-                };
+                inode = inode.parent();
                 continue;
             }
             inode = match inode.find(token) {
@@ -265,7 +277,7 @@ impl Inode {
 
     pub fn remove(self: &Arc<Self>, name: &str) -> bool {
         let mut fs = self.fs.lock();
-        let inode = self.modify_dist_inode(|root_inode| self.find_inode_id(name, root_inode));
+        let inode = self.read_dist_inode(|root_inode| self.find_inode_id(name, root_inode));
 
         if inode.is_none() {
             return false;
@@ -277,7 +289,6 @@ impl Inode {
             block_offset,
             self.fs.clone(),
             self.block_device.clone(),
-            Some(self.clone()),
         ));
 
         if erase_inode.is_dir() {
@@ -324,8 +335,124 @@ impl Inode {
         return true;
     }
 
+    fn is_root(&self) -> bool {
+        let fs = self.fs.lock();
+        let inode_id = self.read_dist_inode(|disk_inode| disk_inode.parent);
+        return self.inode_id(&fs) == inode_id;
+    }
+
+    pub fn mv(self: &Arc<Self>, src: &str, dst: &str) -> bool {
+        let src_inode = match self.cd(src) {
+            Some(inode) => inode,
+            None => return false,
+        };
+        let parent = src_inode.parent();
+        if Inode::same_inode(&parent, &src_inode) {
+            return false;
+        }
+        if self.cd(dst).is_some() {
+            return false;
+        }
+        let mut dst_inode = if dst.starts_with('/') {
+            Arc::new(EasyFileSystem::root_inode(&self.fs))
+        } else {
+            self.clone()
+        };
+        let tokens: Vec<_> = dst.split('/').collect();
+        for &token in &tokens[..tokens.len().saturating_sub(1)] {
+            if token == "." || token == "" {
+                continue;
+            }
+            if token == ".." {
+                dst_inode = dst_inode.parent();
+                continue;
+            }
+            dst_inode = match dst_inode.find(token) {
+                Some(next_inode) => next_inode,
+                None => return false,
+            };
+        }
+
+        if dst_inode.find(tokens.last().unwrap()).is_some() {
+            return false;
+        }
+
+        if Inode::is_ancestor(&src_inode, dst_inode.clone()) {
+            return false;
+        };
+
+        let &last = tokens.last().unwrap();
+        let tokens: Vec<_> = src.split('/').collect();
+        let &name = tokens.last().unwrap();
+
+        let mut v = parent.read_dist_inode(|disk_inode| {
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
+            let mut v: Vec<DirEntry> = Vec::new();
+            for i in 0..file_count {
+                let mut dirent = DirEntry::empty();
+                assert_eq!(
+                    disk_inode.read_at(DIRENT_SZ * i, dirent.as_bytes_mut(), &self.block_device),
+                    DIRENT_SZ
+                );
+                v.push(dirent);
+            }
+            v
+        });
+
+        if let Some(pos) = v.iter().position(|x| x.name() == name) {
+            v.remove(pos);
+        }
+
+        let mut fs = self.fs.lock();
+        parent.modify_dist_inode(|root_inode| {
+            let file_count = (root_inode.size as usize) / DIRENT_SZ;
+            let new_size = (file_count - 1) * DIRENT_SZ;
+            parent.decrease_size(new_size as u32, root_inode, &mut fs);
+            for i in 0..v.len() {
+                root_inode.write_at(i * DIRENT_SZ, v[i].as_bytes(), &parent.block_device);
+            }
+        });
+
+        let inode_id = src_inode.inode_id(&fs);
+
+        dst_inode.modify_dist_inode(|root_inode| {
+            let file_count = (root_inode.size as usize) / DIRENT_SZ;
+            let new_size = (file_count + 1) * DIRENT_SZ;
+            dst_inode.increase_size(new_size as u32, root_inode, &mut fs);
+            let dirent = DirEntry::new(last, inode_id);
+            root_inode.write_at(
+                file_count * DIRENT_SZ,
+                dirent.as_bytes(),
+                &src_inode.block_device,
+            );
+        });
+        drop(fs);
+
+        src_inode.edit_parent(dst_inode);
+
+        return true;
+    }
+
+    fn is_ancestor(ancestor: &Arc<Self>, mut node: Arc<Self>) -> bool {
+        loop {
+            let parent = node.parent();
+            if Inode::same_inode(&parent, &node) {
+                break;
+            }
+            if Inode::same_inode(&parent, ancestor) {
+                return true;
+            }
+            node = parent;
+        }
+        false
+    }
+
     pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
         let _fs = self.fs.lock();
         self.read_dist_inode(|dist_inode| dist_inode.read_at(offset, buf, &self.block_device))
+    }
+
+    pub fn same_inode(node1: &Arc<Self>, node2: &Arc<Self>) -> bool {
+        node1.block_id == node2.block_id && node1.block_offset == node2.block_offset
     }
 }
