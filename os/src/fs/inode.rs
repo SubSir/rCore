@@ -120,24 +120,67 @@ impl OpenFlags {
     }
 }
 
-pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+pub fn open_file(id: usize, name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let (readable, writable) = flags.read_write();
+    let root_inode = Arc::new(ROOT_INODE.get_inode(id as u32));
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = ROOT_INODE.find(name) {
+        if let Some(inode) = root_inode.find(name) {
             inode.clear();
             Some(Arc::new(OSInode::new(readable, writable, inode)))
         } else {
-            ROOT_INODE
+            root_inode
                 .create(name)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        println!("{}", name);
-        ROOT_INODE.find(name).map(|inode| {
+        root_inode.find(name).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
             Arc::new(OSInode::new(readable, writable, inode))
         })
+    }
+}
+
+pub fn mkdir(id: usize, name: &str) -> isize {
+    let node = ROOT_INODE.get_inode(id as u32).mkdir(name);
+    if node.is_none() {
+        -1
+    } else {
+        node.unwrap().self_id() as isize
+    }
+}
+
+pub fn ls(id: usize) -> isize {
+    let node = ROOT_INODE.get_inode(id as u32);
+    for name in node.ls() {
+        println!("{}", name);
+    }
+    0
+}
+
+pub fn cd(id: usize, path: &str) -> isize {
+    let node = ROOT_INODE.get_inode(id as u32).cd(path);
+    if node.is_none() {
+        -1
+    } else {
+        node.unwrap().self_id() as isize
+    }
+}
+
+pub fn rm(id: usize, path: &str) -> isize {
+    let node = ROOT_INODE.get_inode(id as u32);
+    if node.remove(path) {
+        0
+    } else {
+        -1
+    }
+}
+pub fn mv(id: usize, src: &str, dst: &str) -> isize {
+    let node = ROOT_INODE.get_inode(id as u32);
+    if node.mv(src, dst) {
+        0
+    } else {
+        -1
     }
 }

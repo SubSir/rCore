@@ -65,8 +65,8 @@ bitflags! {
     }
 }
 
-pub fn open(path: &str, flags: OpenFlags) -> isize {
-    sys_open(path, flags.bits)
+pub fn open(id: usize, path: &str, flags: OpenFlags) -> isize {
+    sys_open(id, path, flags.bits)
 }
 pub fn close(fd: usize) -> isize {
     sys_close(fd)
@@ -98,8 +98,8 @@ pub fn fork() -> isize {
     sys_fork()
 }
 
-pub fn exec(path: &str, args: &[*const u8]) -> isize {
-    sys_exec(path, args)
+pub fn exec(id: usize, path: &str, args: &[*const u8]) -> isize {
+    sys_exec(id, path, args)
 }
 
 pub fn wait(exit_code: &mut i32) -> isize {
@@ -139,4 +139,24 @@ pub fn pipe(pipe_fd: &mut [usize]) -> isize {
 
 pub fn dup(fd: usize) -> isize {
     sys_dup(fd)
+}
+
+pub fn mkdir(id: usize, name: &str) -> isize {
+    sys_mkdir(id, name)
+}
+
+pub fn ls(id: usize) -> isize {
+    sys_ls(id)
+}
+
+pub fn cd(id: usize, path: &str) -> isize {
+    sys_cd(id, path)
+}
+
+pub fn rm(id: usize, path: &str) -> isize {
+    sys_rm(id, path)
+}
+
+pub fn mv(id: usize, src: &str, dst: &str) -> isize {
+    sys_mv(id, src, dst)
 }

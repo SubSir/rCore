@@ -1,13 +1,12 @@
 use crate::layout::DiskInodeType;
-use alloc::{string::String, sync::Arc, vec::Vec};
-use spin::{Mutex, MutexGuard};
-
 use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
     efs::EasyFileSystem,
     layout::{DIRENT_SZ, DirEntry, DiskInode},
 };
+use alloc::{format, string::String, string::ToString, sync::Arc, vec::Vec};
+use spin::{Mutex, MutexGuard};
 
 pub struct Inode {
     block_id: usize,
@@ -101,6 +100,12 @@ impl Inode {
 
     pub fn inode_id(&self, fs: &MutexGuard<EasyFileSystem>) -> u32 {
         fs.get_inode_id(self.block_id as u32, self.block_offset)
+    }
+
+    pub fn self_id(&self) -> u32 {
+        self.fs
+            .lock()
+            .get_inode_id(self.block_id as u32, self.block_offset)
     }
 
     pub fn ls(&self) -> Vec<String> {
@@ -350,15 +355,23 @@ impl Inode {
         if Inode::same_inode(&parent, &src_inode) {
             return false;
         }
-        if self.cd(dst).is_some() {
+        let new_dst_string;
+        if dst.ends_with("/") {
+            let src_name = src.split('/').last().unwrap();
+            new_dst_string = format!("{}{}", dst, src_name);
+        } else {
+            new_dst_string = dst.to_string();
+        }
+        let new_dst = new_dst_string.as_str();
+        if self.cd(new_dst).is_some() {
             return false;
         }
-        let mut dst_inode = if dst.starts_with('/') {
+        let mut dst_inode = if new_dst.starts_with('/') {
             Arc::new(EasyFileSystem::root_inode(&self.fs))
         } else {
             self.clone()
         };
-        let tokens: Vec<_> = dst.split('/').collect();
+        let tokens: Vec<_> = new_dst.split('/').collect();
         for &token in &tokens[..tokens.len().saturating_sub(1)] {
             if token == "." || token == "" {
                 continue;
@@ -454,5 +467,16 @@ impl Inode {
 
     pub fn same_inode(node1: &Arc<Self>, node2: &Arc<Self>) -> bool {
         node1.block_id == node2.block_id && node1.block_offset == node2.block_offset
+    }
+
+    pub fn get_inode(&self, inode_id: u32) -> Arc<Inode> {
+        let fs = self.fs.lock();
+        let (block_id, block_offset) = fs.get_disk_inode_pos(inode_id);
+        Arc::new(Inode::new(
+            block_id,
+            block_offset,
+            Arc::clone(&self.fs),
+            fs.block_device.clone(),
+        ))
     }
 }

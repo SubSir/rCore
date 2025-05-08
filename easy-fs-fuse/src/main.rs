@@ -232,6 +232,10 @@ fn efs_test() -> std::io::Result<()> {
             .is_some()
     );
 
+    root_inode.mkdir("tmpa");
+    root_inode.mkdir("tmpb");
+    assert!(root_inode.mv("tmpa", "tmpb/"));
+
     // 输出最终结构便于人工确认
     println!("final root_inode ls:");
     for name in root_inode.ls() {

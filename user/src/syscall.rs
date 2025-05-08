@@ -27,8 +27,14 @@ const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
 
-pub fn sys_open(path: &str, flags: u32) -> isize {
-    syscall(SYSCALL_OPEN, [path.as_ptr() as usize, flags as usize, 0])
+const SYSCALL_MKDIR: usize = 1024;
+const SYSCALL_CD: usize = 1025;
+const SYSCALL_LS: usize = 1026;
+const SYSCALL_RM: usize = 1027;
+const SYSCALL_MV: usize = 1028;
+
+pub fn sys_open(id: usize, path: &str, flags: u32) -> isize {
+    syscall(SYSCALL_OPEN, [id, path.as_ptr() as usize, flags as usize])
 }
 
 pub fn sys_close(fd: usize) -> isize {
@@ -70,10 +76,10 @@ pub fn sys_fork() -> isize {
     syscall(SYSCALL_FORK, [0, 0, 0])
 }
 
-pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
+pub fn sys_exec(id: usize, path: &str, args: &[*const u8]) -> isize {
     syscall(
         SYSCALL_EXEC,
-        [path.as_ptr() as usize, args.as_ptr() as usize, 0],
+        [id, path.as_ptr() as usize, args.as_ptr() as usize],
     )
 }
 
@@ -87,4 +93,27 @@ pub fn sys_pipe(pipe: &mut [usize]) -> isize {
 
 pub fn sys_dup(fd: usize) -> isize {
     syscall(SYSCALL_DUP, [fd, 0, 0])
+}
+
+pub fn sys_mkdir(id: usize, name: &str) -> isize {
+    syscall(SYSCALL_MKDIR, [id, name.as_ptr() as usize, 0])
+}
+
+pub fn sys_cd(id: usize, path: &str) -> isize {
+    syscall(SYSCALL_CD, [id, path.as_ptr() as usize, 0])
+}
+
+pub fn sys_ls(id: usize) -> isize {
+    syscall(SYSCALL_LS, [id, 0, 0])
+}
+
+pub fn sys_rm(id: usize, path: &str) -> isize {
+    syscall(SYSCALL_RM, [id, path.as_ptr() as usize, 0])
+}
+
+pub fn sys_mv(id: usize, src: &str, dst: &str) -> isize {
+    syscall(
+        SYSCALL_MV,
+        [id, src.as_ptr() as usize, dst.as_ptr() as usize],
+    )
 }

@@ -1,5 +1,5 @@
 use crate::{
-    fs::{make_pipe, open_file, OpenFlags},
+    fs::*,
     mm::{translate_byte_buffer, translated_refmut, translated_str, UserBuffer},
     task::processor::{current_task, current_user_token},
 };
@@ -36,11 +36,11 @@ pub fn sys_read(fd: usize, buffer: *const u8, len: usize) -> isize {
     }
 }
 
-pub fn sys_open(path: *const u8, flags: u32) -> isize {
+pub fn sys_open(id: usize, path: *const u8, flags: u32) -> isize {
     let task = current_task().unwrap();
     let token = current_user_token();
     let path = translated_str(token, path);
-    if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
+    if let Some(inode) = open_file(id, path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
         let mut inner = task.inner_exclusive_access();
         let fd = inner.alloc_fd();
         inner.fd_table[fd] = Some(inode);
@@ -89,4 +89,33 @@ pub fn sys_dup(fd: usize) -> isize {
     let new_fd = inner.alloc_fd();
     inner.fd_table[new_fd] = Some(inner.fd_table[fd].clone().unwrap());
     new_fd as isize
+}
+
+pub fn sys_mkdir(id: usize, path: *const u8) -> isize {
+    let token = current_user_token();
+    let path = translated_str(token, path);
+    mkdir(id, path.as_str())
+}
+
+pub fn sys_ls(id: usize) -> isize {
+    ls(id)
+}
+
+pub fn sys_cd(id: usize, path: *const u8) -> isize {
+    let token = current_user_token();
+    let path = translated_str(token, path);
+    cd(id, path.as_str())
+}
+
+pub fn sys_rm(id: usize, path: *const u8) -> isize {
+    let token = current_user_token();
+    let path = translated_str(token, path);
+    rm(id, path.as_str())
+}
+
+pub fn sys_mv(id: usize, src: *const u8, dst: *const u8) -> isize {
+    let token = current_user_token();
+    let src = translated_str(token, src);
+    let dst = translated_str(token, dst);
+    mv(id, src.as_str(), dst.as_str())
 }

@@ -3,6 +3,7 @@
 #![allow(clippy::println_empty_string)]
 
 extern crate alloc;
+use crate::alloc::string::ToString;
 
 #[macro_use]
 extern crate user_lib;
@@ -11,12 +12,12 @@ const LF: u8 = 0x0au8;
 const CR: u8 = 0x0du8;
 const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
-const LINE_START: &str = ">> ";
+const LINE_START: &str = " >> ";
 
 use alloc::string::String;
 use alloc::vec::Vec;
 use user_lib::console::getchar;
-use user_lib::{OpenFlags, close, dup, exec, fork, open, pipe, waitpid};
+use user_lib::{OpenFlags, cd, close, dup, exec, fork, ls, mkdir, mv, open, pipe, rm, waitpid};
 
 #[derive(Debug)]
 struct ProcessArguments {
@@ -74,11 +75,42 @@ impl ProcessArguments {
     }
 }
 
+fn edit_path(current_path: String, command: &str) -> String {
+    let mut components = Vec::new();
+
+    if command.starts_with('/') {
+        components = Vec::new();
+    } else {
+        components = current_path
+            .split('/')
+            .filter(|&s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+    }
+
+    for part in command.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                components.pop();
+            }
+            x => {
+                components.push(x.to_string());
+            }
+        }
+    }
+
+    let mut result = String::from("/");
+    result.push_str(&components.join("/"));
+    result
+}
 #[unsafe(no_mangle)]
 pub fn main() -> i32 {
     println!("Rust user shell");
     let mut line: String = String::new();
-    print!("{}", LINE_START);
+    let mut current_path: String = String::from("/");
+    let mut current_inode_id: usize = 0;
+    print!("{}", current_path.clone() + LINE_START);
     loop {
         let c = getchar();
         match c {
@@ -122,6 +154,50 @@ pub fn main() -> i32 {
                         }
                         let mut children: Vec<_> = Vec::new();
                         for (i, process_argument) in process_arguments_list.iter().enumerate() {
+                            let args_copy = &process_argument.args_copy;
+                            if args_copy[0] == "mkdir\0" {
+                                if mkdir(current_inode_id, args_copy[1].as_str()) == -1 {
+                                    println!("Error when creating directory {}", args_copy[1]);
+                                };
+                                continue;
+                            }
+                            if args_copy[0] == "rm\0" {
+                                if rm(current_inode_id, args_copy[1].as_str()) == -1 {
+                                    println!("Error when removing file {}", args_copy[2]);
+                                };
+                                continue;
+                            }
+                            if args_copy[0] == "mv\0" {
+                                if mv(
+                                    current_inode_id,
+                                    args_copy[1].as_str(),
+                                    args_copy[2].as_str(),
+                                ) == -1
+                                {
+                                    println!(
+                                        "Error when moving file {} to {}",
+                                        args_copy[1], args_copy[2]
+                                    );
+                                }
+                                continue;
+                            }
+                            if args_copy[0] == "cd\0" {
+                                let inode_id = cd(current_inode_id, args_copy[1].as_str());
+                                if inode_id != -1 {
+                                    current_inode_id = inode_id as usize;
+                                    current_path =
+                                        edit_path(current_path.clone(), args_copy[1].as_str());
+                                } else {
+                                    println!("Error when changing directory to {}", args_copy[1]);
+                                }
+                                continue;
+                            }
+                            if args_copy[0] == "ls\0" {
+                                if ls(current_inode_id) == -1 {
+                                    println!("Error when listing directory");
+                                };
+                                continue;
+                            }
                             let pid = fork();
                             if pid == 0 {
                                 let input = &process_argument.input;
@@ -130,7 +206,8 @@ pub fn main() -> i32 {
                                 let args_addr = &process_argument.args_addr;
                                 // redirect input
                                 if !input.is_empty() {
-                                    let input_fd = open(input.as_str(), OpenFlags::RDONLY);
+                                    let input_fd =
+                                        open(current_inode_id, input.as_str(), OpenFlags::RDONLY);
                                     if input_fd == -1 {
                                         println!("Error when opening file {}", input);
                                         return -4;
@@ -143,6 +220,7 @@ pub fn main() -> i32 {
                                 // redirect output
                                 if !output.is_empty() {
                                     let output_fd = open(
+                                        current_inode_id,
                                         output.as_str(),
                                         OpenFlags::CREATE | OpenFlags::WRONLY,
                                     );
@@ -173,7 +251,12 @@ pub fn main() -> i32 {
                                     close(pipe_fd[1]);
                                 }
                                 // execute new application
-                                if exec(args_copy[0].as_str(), args_addr.as_slice()) == -1 {
+                                if exec(
+                                    current_inode_id,
+                                    args_copy[0].as_str(),
+                                    args_addr.as_slice(),
+                                ) == -1
+                                {
                                     println!("Error when executing!");
                                     return -4;
                                 }
@@ -195,7 +278,7 @@ pub fn main() -> i32 {
                     }
                     line.clear();
                 }
-                print!("{}", LINE_START);
+                print!("{}", current_path.clone() + LINE_START);
             }
             BS | DL => {
                 if !line.is_empty() {

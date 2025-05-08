@@ -74,7 +74,7 @@ fn run_tests(tests: &[(&str, &str, &str, &str, i32)]) -> i32 {
 
         let pid = fork();
         if pid == 0 {
-            exec(test.0, &arr[..]);
+            exec(0, test.0, &arr[..]);
             panic!("unreachable!");
         } else {
             let mut exit_code: i32 = Default::default();

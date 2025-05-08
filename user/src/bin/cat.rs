@@ -10,7 +10,7 @@ use user_lib::{OpenFlags, close, open, read};
 #[unsafe(no_mangle)]
 pub fn main(argc: usize, argv: &[&str]) -> i32 {
     assert_eq!(argc, 2);
-    let fd = open(argv[1], OpenFlags::RDONLY);
+    let fd = open(0, argv[1], OpenFlags::RDONLY);
     if fd == -1 {
         panic!("Error occured when opening file");
     }

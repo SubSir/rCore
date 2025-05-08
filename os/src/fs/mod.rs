@@ -4,7 +4,7 @@ mod inode;
 mod pipe;
 mod stdio;
 
-pub use inode::{list_apps, open_file, OpenFlags};
+pub use inode::*;
 pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};
 
