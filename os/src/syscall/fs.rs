@@ -3,6 +3,7 @@ use crate::{
     mm::{translate_byte_buffer, translated_refmut, translated_str, UserBuffer},
     task::processor::{current_task, current_user_token},
 };
+use easy_fs::block_cache_sync_all;
 
 pub fn sys_write(fd: usize, buffer: *const u8, len: usize) -> isize {
     let token = current_user_token();
@@ -14,7 +15,9 @@ pub fn sys_write(fd: usize, buffer: *const u8, len: usize) -> isize {
     if let Some(file) = &inner.fd_table[fd] {
         let file = file.clone();
         drop(inner);
-        file.write(UserBuffer::new(translate_byte_buffer(token, buffer, len))) as isize
+        let ret = file.write(UserBuffer::new(translate_byte_buffer(token, buffer, len))) as isize;
+        block_cache_sync_all();
+        ret
     } else {
         -1
     }
@@ -44,6 +47,7 @@ pub fn sys_open(id: usize, path: *const u8, flags: u32) -> isize {
         let mut inner = task.inner_exclusive_access();
         let fd = inner.alloc_fd();
         inner.fd_table[fd] = Some(inode);
+        block_cache_sync_all();
         fd as isize
     } else {
         -1
@@ -74,6 +78,7 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     inner.fd_table[write_fd] = Some(pipe_write);
     *translated_refmut(token, pipe) = read_fd;
     *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
+    block_cache_sync_all();
     0
 }
 
@@ -88,13 +93,16 @@ pub fn sys_dup(fd: usize) -> isize {
     }
     let new_fd = inner.alloc_fd();
     inner.fd_table[new_fd] = Some(inner.fd_table[fd].clone().unwrap());
+    block_cache_sync_all();
     new_fd as isize
 }
 
 pub fn sys_mkdir(id: usize, path: *const u8) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-    mkdir(id, path.as_str())
+    let ret = mkdir(id, path.as_str());
+    block_cache_sync_all();
+    ret
 }
 
 pub fn sys_ls(id: usize) -> isize {
@@ -110,12 +118,16 @@ pub fn sys_cd(id: usize, path: *const u8) -> isize {
 pub fn sys_rm(id: usize, path: *const u8) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
-    rm(id, path.as_str())
+    let ret = rm(id, path.as_str());
+    block_cache_sync_all();
+    ret
 }
 
 pub fn sys_mv(id: usize, src: *const u8, dst: *const u8) -> isize {
     let token = current_user_token();
     let src = translated_str(token, src);
     let dst = translated_str(token, dst);
-    mv(id, src.as_str(), dst.as_str())
+    let ret = mv(id, src.as_str(), dst.as_str());
+    block_cache_sync_all();
+    ret
 }
