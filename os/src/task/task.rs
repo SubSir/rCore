@@ -1,31 +1,22 @@
 use core::cell::RefMut;
 
-use crate::config::*;
-use crate::fs::File;
 use crate::mm::*;
 use crate::task::context::TaskContext;
-use crate::task::pid::pid_alloc;
-use crate::task::pid::KernelStack;
+use crate::task::id::kernel_stack_alloc;
+use crate::task::id::KernelStack;
 use crate::task::UPSafeCell;
-use crate::trap::trap_handler;
 use crate::trap::TrapContext;
-use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::sync::Weak;
-use alloc::vec;
-use alloc::vec::Vec;
 
-use super::pid::PidHandle;
+use super::id::TaskUserRes;
+use super::process::ProcessControlBlock;
 pub struct TaskControlBlockInner {
+    pub res: Option<TaskUserRes>,
     pub trap_cx_ppn: PhysPageNum,
-    pub base_size: usize,
     pub task_cx: TaskContext,
     pub task_status: TaskStatus,
-    pub memory_set: MemorySet,
-    pub parent: Option<Weak<TaskControlBlock>>,
-    pub children: Vec<Arc<TaskControlBlock>>,
-    pub exit_code: i32,
-    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    pub exit_code: Option<i32>,
 }
 
 impl TaskControlBlockInner {
@@ -33,24 +24,8 @@ impl TaskControlBlockInner {
         self.trap_cx_ppn.get_mut()
     }
 
-    pub fn get_user_token(&self) -> usize {
-        self.memory_set.token()
-    }
-
     fn get_status(&self) -> TaskStatus {
         self.task_status
-    }
-
-    pub fn is_zombie(&self) -> bool {
-        self.get_status() == TaskStatus::Zombie
-    }
-
-    pub fn alloc_fd(&mut self) -> usize {
-        if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
-            return fd;
-        }
-        self.fd_table.push(None);
-        return self.fd_table.len() - 1;
     }
 }
 
@@ -58,11 +33,11 @@ impl TaskControlBlockInner {
 pub enum TaskStatus {
     Ready,
     Running,
-    Zombie,
+    Blocked,
 }
 
 pub struct TaskControlBlock {
-    pub pid: PidHandle,
+    pub process: Weak<ProcessControlBlock>,
     pub kernel_stack: KernelStack,
     inner: UPSafeCell<TaskControlBlockInner>,
 }
@@ -71,135 +46,33 @@ impl TaskControlBlock {
         self.inner.exclusive_access()
     }
 
-    pub fn new(elf_data: &[u8]) -> Self {
-        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT).into())
-            .unwrap()
-            .ppn();
+    pub fn get_user_token(&self) -> usize {
+        let process = self.process.upgrade().unwrap();
+        let inner = process.inner_exclusive_access();
+        inner.memory_set.token()
+    }
 
-        let pid_handle = pid_alloc();
-        let kernel_stack = KernelStack::new(&pid_handle);
-        let kernel_stack_top = kernel_stack.get_top();
-
-        let task_control_block = Self {
-            pid: pid_handle,
-            kernel_stack,
+    pub fn new(
+        process: Arc<ProcessControlBlock>,
+        ustack_base: usize,
+        alloc_user_res: bool,
+    ) -> Self {
+        let res = TaskUserRes::new(Arc::clone(&process), ustack_base, alloc_user_res);
+        let trap_cx_ppn = res.trap_cx_ppn();
+        let new_kernel_stack = kernel_stack_alloc();
+        let kstack_top = new_kernel_stack.get_top();
+        Self {
+            process: Arc::downgrade(&process),
+            kernel_stack: new_kernel_stack,
             inner: unsafe {
                 UPSafeCell::new(TaskControlBlockInner {
+                    res: Some(res),
                     trap_cx_ppn,
-                    base_size: user_sp,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_cx: TaskContext::goto_trap_return(kstack_top),
                     task_status: TaskStatus::Ready,
-                    memory_set,
-                    parent: None,
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: vec![
-                        Some(Arc::new(crate::fs::Stdin)),
-                        Some(Arc::new(crate::fs::Stdout)),
-                        Some(Arc::new(crate::fs::Stdout)),
-                    ],
+                    exit_code: None,
                 })
             },
-        };
-
-        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
-        *trap_cx = TrapContext::app_init_context(
-            entry_point,
-            user_sp,
-            KERNEL_SPACE.exclusive_access().token(),
-            kernel_stack_top,
-            trap_handler as usize,
-        );
-        task_control_block
-    }
-
-    pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
-        let mut parent_inner = self.inner_exclusive_access();
-        let memory_set = MemorySet::from_existed_user(&parent_inner.memory_set);
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT).into())
-            .unwrap()
-            .ppn();
-        let pid_handle = pid_alloc();
-        let kernel_stack = KernelStack::new(&pid_handle);
-        let kernel_stack_top = kernel_stack.get_top();
-        let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
-        for f in parent_inner.fd_table.iter() {
-            if let Some(file) = f {
-                new_fd_table.push(Some(file.clone()));
-            } else {
-                new_fd_table.push(None);
-            }
         }
-        let task_control_block = Arc::new(Self {
-            pid: pid_handle,
-            kernel_stack,
-            inner: unsafe {
-                UPSafeCell::new(TaskControlBlockInner {
-                    trap_cx_ppn,
-                    base_size: parent_inner.base_size,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                    task_status: TaskStatus::Ready,
-                    memory_set,
-                    parent: Some(Arc::downgrade(self)),
-                    children: Vec::new(),
-                    exit_code: 0,
-                    fd_table: new_fd_table,
-                })
-            },
-        });
-        parent_inner.children.push(task_control_block.clone());
-        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
-        trap_cx.kernel_sp = kernel_stack_top;
-        task_control_block
-    }
-
-    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
-        let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT).into())
-            .unwrap()
-            .ppn();
-        user_sp -= (args.len() + 1) * core::mem::size_of::<usize>();
-        let argv_base = user_sp;
-        let mut argv: Vec<_> = (0..=args.len())
-            .map(|arg| {
-                translated_refmut(
-                    memory_set.token(),
-                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
-                )
-            })
-            .collect();
-        *argv[args.len()] = 0;
-        for i in 0..args.len() {
-            user_sp -= args[i].len() + 1;
-            *argv[i] = user_sp;
-            let mut p = user_sp;
-            for c in args[i].as_bytes() {
-                *translated_refmut(memory_set.token(), p as *mut u8) = *c;
-                p += 1;
-            }
-            *translated_refmut(memory_set.token(), p as *mut u8) = 0;
-        }
-        user_sp -= user_sp % core::mem::size_of::<usize>();
-        let mut inner = self.inner_exclusive_access();
-        inner.memory_set = memory_set;
-        inner.trap_cx_ppn = trap_cx_ppn;
-        let mut trap_cx = TrapContext::app_init_context(
-            entry_point,
-            user_sp,
-            KERNEL_SPACE.exclusive_access().token(),
-            self.kernel_stack.get_top(),
-            trap_handler as usize,
-        );
-        trap_cx.x[10] = argv.len();
-        trap_cx.x[11] = argv_base;
-        *inner.get_trap_cx() = trap_cx;
-    }
-
-    pub fn getpid(&self) -> usize {
-        self.pid.0
     }
 }

@@ -160,3 +160,22 @@ pub fn rm(id: usize, path: &str) -> isize {
 pub fn mv(id: usize, src: &str, dst: &str) -> isize {
     sys_mv(id, src, dst)
 }
+
+pub fn waittid(tid: usize) -> isize {
+    loop {
+        match sys_waittid(tid) {
+            -2 => {
+                yield_();
+            }
+            exit_code => return exit_code,
+        }
+    }
+}
+
+pub fn thread_create(entry: usize, arg: usize) -> isize {
+    sys_thread_create(entry, arg)
+}
+
+pub fn gettid() -> isize {
+    sys_gettid()
+}

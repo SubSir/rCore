@@ -26,6 +26,9 @@ const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_THREAD_CREATE: usize = 1000;
+const SYSCALL_GETTID: usize = 1001;
+const SYSCALL_WAITTID: usize = 1002;
 
 const SYSCALL_MKDIR: usize = 1024;
 const SYSCALL_CD: usize = 1025;
@@ -116,4 +119,16 @@ pub fn sys_mv(id: usize, src: &str, dst: &str) -> isize {
         SYSCALL_MV,
         [id, src.as_ptr() as usize, dst.as_ptr() as usize],
     )
+}
+
+pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
+    syscall(SYSCALL_THREAD_CREATE, [entry, arg, 0])
+}
+
+pub fn sys_gettid() -> isize {
+    syscall(SYSCALL_GETTID, [0, 0, 0])
+}
+
+pub fn sys_waittid(tid: usize) -> isize {
+    syscall(SYSCALL_WAITTID, [tid, 0, 0])
 }
