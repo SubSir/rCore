@@ -39,9 +39,9 @@
     - [ ] IPI (Optional)
   - [x] IPC 
     - [x] Pipe 
-- [ ] Synchronization primitives  
+- [x] Synchronization primitives  
   - [x] Mutex  
-  - [ ] Conditional variables (Optional) 
+  - [x] Conditional variables (Optional) 
 - [ ] File system (Optional) 
   - [x] File/directory creation/deletion   
   - [x] File/directory renaming  

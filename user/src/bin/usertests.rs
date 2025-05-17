@@ -25,8 +25,8 @@ static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
     ("phil_din_mutex\0", "\0", "\0", "\0", 0),
     ("pipe_large_test\0", "\0", "\0", "\0", 0),
     ("pipetest\0", "\0", "\0", "\0", 0),
-    // ("adder_peterson_spin\0", "\0", "\0", "\0", 0),
-    // ("adder_peterson_yield\0", "\0", "\0", "\0", 0),
+    ("adder_peterson_spin\0", "\0", "\0", "\0", 0),
+    ("adder_peterson_yield\0", "\0", "\0", "\0", 0),
     ("adder_mutex_blocking\0", "\0", "\0", "\0", 0),
     ("adder_mutex_spin\0", "\0", "\0", "\0", 0),
     ("run_pipe_test\0", "\0", "\0", "\0", 0),
@@ -35,12 +35,12 @@ static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
     ("sleep_simple\0", "\0", "\0", "\0", 0),
     // ("sync_sem\0", "\0", "\0", "\0", 0),
     // ("condsync_sem\0", "\0", "\0", "\0", 0),
-    // ("condsync_condvar\0", "\0", "\0", "\0", 0),
+    ("condsync_condvar\0", "\0", "\0", "\0", 0),
     ("threads_arg\0", "\0", "\0", "\0", 0),
     ("threads\0", "\0", "\0", "\0", 0),
     ("yield\0", "\0", "\0", "\0", 0),
     ("barrier_fail\0", "\0", "\0", "\0", 0),
-    // ("barrier_condvar\0", "\0", "\0", "\0", 0),
+    ("barrier_condvar\0", "\0", "\0", "\0", 0),
 ];
 
 static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[

@@ -25,6 +25,10 @@ const SYSCALL_LS: usize = 1026;
 const SYSCALL_RM: usize = 1027;
 const SYSCALL_MV: usize = 1028;
 
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
+
 use fs::*;
 use process::*;
 use sync::*;
@@ -62,6 +66,9 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_MV => sys_mv(args[0], args[1] as *const u8, args[2] as *const u8),
         SYSCALL_RM => sys_rm(args[0], args[1] as *const u8),
         SYSCALL_MKDIR => sys_mkdir(args[0], args[1] as *const u8),
+        SYSCALL_CONDVAR_CREATE => sys_condvar_create(),
+        SYSCALL_CONDVAR_SIGNAL => sys_condvar_signal(args[0]),
+        SYSCALL_CONDVAR_WAIT => sys_condvar_wait(args[0], args[1]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

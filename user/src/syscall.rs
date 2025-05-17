@@ -40,6 +40,9 @@ const SYSCALL_LS: usize = 1026;
 const SYSCALL_RM: usize = 1027;
 const SYSCALL_MV: usize = 1028;
 
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
 pub fn sys_open(id: usize, path: &str, flags: u32) -> isize {
     syscall(SYSCALL_OPEN, [id, path.as_ptr() as usize, flags as usize])
 }
@@ -151,4 +154,15 @@ pub fn sys_mutex_unlock(id: usize) -> isize {
 
 pub fn sys_kill() -> isize {
     syscall(SYSCALL_KILL, [0, 0, 0])
+}
+pub fn sys_condvar_create() -> isize {
+    syscall(SYSCALL_CONDVAR_CREATE, [0, 0, 0])
+}
+
+pub fn sys_condvar_signal(condvar_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_SIGNAL, [condvar_id, 0, 0])
+}
+
+pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_WAIT, [condvar_id, mutex_id, 0])
 }
