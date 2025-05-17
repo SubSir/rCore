@@ -179,3 +179,45 @@ pub fn thread_create(entry: usize, arg: usize) -> isize {
 pub fn gettid() -> isize {
     sys_gettid()
 }
+
+pub fn mutex_create() -> isize {
+    sys_mutex_create(false)
+}
+pub fn mutex_blocking_create() -> isize {
+    sys_mutex_create(true)
+}
+pub fn mutex_lock(mutex_id: usize) {
+    sys_mutex_lock(mutex_id);
+}
+pub fn mutex_unlock(mutex_id: usize) {
+    sys_mutex_unlock(mutex_id);
+}
+
+pub fn kill() -> isize {
+    sys_kill()
+}
+
+#[macro_export]
+macro_rules! vstore {
+    ($var: expr, $value: expr) => {
+        // unsafe { core::intrinsics::volatile_store($var_ref as *const _ as _, $value) }
+        unsafe {
+            core::ptr::write_volatile(core::ptr::addr_of_mut!($var), $value);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! vload {
+    ($var: expr) => {
+        // unsafe { core::intrinsics::volatile_load($var_ref as *const _ as _) }
+        unsafe { core::ptr::read_volatile(core::ptr::addr_of!($var)) }
+    };
+}
+
+#[macro_export]
+macro_rules! memory_fence {
+    () => {
+        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst)
+    };
+}

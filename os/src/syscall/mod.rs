@@ -6,6 +6,7 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_YIELD: usize = 124;
+const SYSCALL_KILL: usize = 129;
 const SYSCALL_GET_TIME: usize = 169;
 const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
@@ -14,6 +15,9 @@ const SYSCALL_WAITPID: usize = 260;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_GETTID: usize = 1001;
 const SYSCALL_WAITTID: usize = 1002;
+const SYSCALL_MUTEX_CREATE: usize = 1010;
+const SYSCALL_MUTEX_LOCK: usize = 1011;
+const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 
 const SYSCALL_MKDIR: usize = 1024;
 const SYSCALL_CD: usize = 1025;
@@ -23,10 +27,12 @@ const SYSCALL_MV: usize = 1028;
 
 use fs::*;
 use process::*;
+use sync::*;
 use thread::*;
 
 mod fs;
 mod process;
+mod sync;
 mod thread;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
@@ -38,6 +44,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
         SYSCALL_YIELD => sys_yield(),
+        SYSCALL_KILL => sys_kill(),
         SYSCALL_GET_TIME => sys_get_time(),
         SYSCALL_GETPID => sys_getpid(),
         SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),
@@ -47,6 +54,9 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_THREAD_CREATE => sys_thread_create(args[0], args[1]),
         SYSCALL_GETTID => sys_gettid(),
         SYSCALL_WAITTID => sys_waittid(args[0]) as isize,
+        SYSCALL_MUTEX_CREATE => sys_mutex_create(args[0] == 1),
+        SYSCALL_MUTEX_LOCK => sys_mutex_lock(args[0]),
+        SYSCALL_MUTEX_UNLOCK => sys_mutex_unlock(args[0]),
         SYSCALL_CD => sys_cd(args[0], args[1] as *const u8),
         SYSCALL_LS => sys_ls(args[0]),
         SYSCALL_MV => sys_mv(args[0], args[1] as *const u8, args[2] as *const u8),

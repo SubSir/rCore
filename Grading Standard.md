@@ -40,7 +40,7 @@
   - [x] IPC 
     - [x] Pipe 
 - [ ] Synchronization primitives  
-  - [ ] Mutex  
+  - [x] Mutex  
   - [ ] Conditional variables (Optional) 
 - [ ] File system (Optional) 
   - [x] File/directory creation/deletion   

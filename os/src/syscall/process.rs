@@ -94,3 +94,8 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         -2
     }
 }
+
+pub fn sys_kill() -> isize {
+    exit_current_and_run_next(-4);
+    0
+}
