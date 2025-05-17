@@ -2,11 +2,13 @@ use crate::fs::open_file;
 use crate::fs::OpenFlags;
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
+use crate::task::processor::schedule2;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use id::TaskUserRes;
 use id::IDLE_PID;
 use manager::add_task;
+use manager::count;
 use manager::remove_from_pid2process;
 use manager::TASK_MANAGER;
 use processor::{schedule, take_curent_task};
@@ -37,6 +39,7 @@ pub fn add_initproc() {
     let _initproc = INITPROC.clone();
 }
 pub fn suspend_current_and_run_next() {
+    // println!("Suspend current and run next");
     let task = take_curent_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
@@ -46,6 +49,16 @@ pub fn suspend_current_and_run_next() {
     schedule(task_cx_ptr);
 }
 
+pub fn suspend_current_and_run_next2() {
+    // println!("Suspend current and run next");
+    let task = take_curent_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    add_task(task);
+    schedule2(task_cx_ptr);
+}
 pub fn block_current_and_run_next() {
     let task = take_curent_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();
@@ -83,10 +96,7 @@ pub fn exit_current_and_run_next(xstate: i32) {
             let mut initproc_inner = INITPROC.inner_exclusive_access();
             for child in process_inner.children.iter() {
                 child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
-                INITPROC
-                    .inner_exclusive_access()
-                    .children
-                    .push(child.clone());
+                initproc_inner.children.push(child.clone());
             }
         }
 

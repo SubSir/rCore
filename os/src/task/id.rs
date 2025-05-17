@@ -35,7 +35,9 @@ impl TaskUserRes {
             ustack_base,
             process: Arc::downgrade(&process),
         };
-        if alloc_user_res {}
+        if alloc_user_res {
+            task_user_res.alloc_user_res();
+        }
         task_user_res
     }
 
@@ -44,10 +46,6 @@ impl TaskUserRes {
         let mut process_inner = process.inner_exclusive_access();
         let ustack_bottom = ustack_bottom_from_tid(self.ustack_base, self.tid);
         let ustack_top = ustack_bottom + USER_STACK_SIZE;
-        println!(
-            "alloc_user_res: ustack_bottom = {:#x}, ustack_top = {:#x}",
-            ustack_bottom, ustack_top
-        );
         process_inner.memory_set.insert_framed_area(
             ustack_bottom.into(),
             ustack_top.into(),
@@ -55,10 +53,6 @@ impl TaskUserRes {
         );
         let trap_cx_bottom = trap_cx_bottom_from_tid(self.tid);
         let trap_cx_top = trap_cx_bottom + PAGE_SIZE;
-        println!(
-            "trap_cx_bottom: 0x{:x}, trap_cx_top: 0x{:x}",
-            trap_cx_bottom, trap_cx_top
-        );
         process_inner.memory_set.insert_framed_area(
             trap_cx_bottom.into(),
             trap_cx_top.into(),
@@ -216,6 +210,7 @@ impl Drop for KernelStack {
         KERNEL_SPACE
             .exclusive_access()
             .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
+        KSTACK_ALLOCATOR.exclusive_access().dealloc(self.0);
     }
 }
 

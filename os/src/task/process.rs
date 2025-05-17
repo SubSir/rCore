@@ -176,7 +176,7 @@ impl ProcessControlBlock {
         drop(child_inner);
         let task_inner = task.inner_exclusive_access();
         let trap_cx = task_inner.get_trap_cx();
-        trap_cx.kernel_satp = task.kernel_stack.get_top();
+        trap_cx.kernel_sp = task.kernel_stack.get_top();
         drop(task_inner);
         insert_into_pid2process(child.getpid(), Arc::clone(&child));
         add_task(task);
