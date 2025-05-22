@@ -5,10 +5,10 @@
 - [x] Bootloader  
   - [x] Initialization  
   - [x] Entering S mode for the kernel  
-- [ ] Allocator  
+- [x] Allocator  
   - [x] Buddy allocator  
   - [x] Frame allocator (or any fine-grained allocator for any size of memory)  
-  - [ ] SLAB (Optional) 
+  - [x] SLAB (Optional) 
 - [x] Page table  
   - [x] For kernel  
   - [x] For each user process  

@@ -1,9 +1,10 @@
+use crate::mm::slab::Slab;
 use crate::{config::*, console::print};
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
 
 #[link_section = ".heap"]
-static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+pub static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 static mut SIZE_TABEL: [usize; NODE_WIDTH + 1] = [0; NODE_WIDTH + 1];
 static mut NODE_LIST: [Node; 2 * NODE_SIZE] = [Node { next: 0 }; 2 * NODE_SIZE];
 pub struct Buddy;
@@ -178,7 +179,7 @@ unsafe impl GlobalAlloc for Buddy {
     }
 }
 #[global_allocator]
-static HEAP_ALLOCATOR: Buddy = Buddy {};
+static HEAP_ALLOCATOR: Slab = Slab {};
 pub fn init_heap() {
     unsafe {
         HEAP_ALLOCATOR.init();
@@ -195,10 +196,10 @@ pub fn heap_test() {
     use alloc::boxed::Box;
     use alloc::vec::Vec;
     extern "C" {
-        fn sbss();
-        fn ebss();
+        fn sheap();
+        fn eheap();
     }
-    let bss_range = sbss as usize..ebss as usize;
+    let bss_range = sheap as usize..eheap as usize;
     let a = Box::new(5);
     assert_eq!(*a, 5);
     assert!(bss_range.contains(&(a.as_ref() as *const _ as usize)));
