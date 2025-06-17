@@ -102,6 +102,9 @@ fn edit_path(current_path: String, command: &str) -> String {
 
     let mut result = String::from("/");
     result.push_str(&components.join("/"));
+    while result.contains("//") {
+        result = result.replace("//", "/");
+    }
     result
 }
 #[unsafe(no_mangle)]
