@@ -17,7 +17,9 @@ const LINE_START: &str = " >> ";
 use alloc::string::String;
 use alloc::vec::Vec;
 use user_lib::console::getchar;
-use user_lib::{OpenFlags, cd, close, dup, exec, fork, ls, mkdir, mv, open, pipe, rm, waitpid};
+use user_lib::{
+    OpenFlags, cd, close, dup, exec, fork, ls, mkdir, mv, open, pipe, read, rm, waitpid,
+};
 
 #[derive(Debug)]
 struct ProcessArguments {
@@ -159,18 +161,30 @@ pub fn main() -> i32 {
                         for (i, process_argument) in process_arguments_list.iter().enumerate() {
                             let args_copy = &process_argument.args_copy;
                             if args_copy[0] == "mkdir\0" {
+                                if args_copy.len() != 2 {
+                                    println!("Invalid command: mkdir requires one argument");
+                                    continue;
+                                }
                                 if mkdir(current_inode_id, args_copy[1].as_str()) == -1 {
                                     println!("Error when creating directory {}", args_copy[1]);
                                 };
                                 continue;
                             }
                             if args_copy[0] == "rm\0" {
+                                if args_copy.len() != 2 {
+                                    println!("Invalid command: rm requires one argument");
+                                    continue;
+                                }
                                 if rm(current_inode_id, args_copy[1].as_str()) == -1 {
                                     println!("Error when removing file {}", args_copy[2]);
                                 };
                                 continue;
                             }
                             if args_copy[0] == "mv\0" {
+                                if args_copy.len() != 3 {
+                                    println!("Invalid command: mv requires two arguments");
+                                    continue;
+                                }
                                 if mv(
                                     current_inode_id,
                                     args_copy[1].as_str(),
@@ -185,6 +199,10 @@ pub fn main() -> i32 {
                                 continue;
                             }
                             if args_copy[0] == "cd\0" {
+                                if args_copy.len() != 2 {
+                                    println!("Invalid command: cd requires one argument");
+                                    continue;
+                                }
                                 let inode_id = cd(current_inode_id, args_copy[1].as_str());
                                 if inode_id != -1 {
                                     current_inode_id = inode_id as usize;
@@ -199,6 +217,31 @@ pub fn main() -> i32 {
                                 if ls(current_inode_id) == -1 {
                                     println!("Error when listing directory");
                                 };
+                                continue;
+                            }
+                            if args_copy[0] == "cat\0" {
+                                if args_copy.len() != 2 {
+                                    println!("Invalid command: cat requires one argument");
+                                    continue;
+                                }
+                                let fd = open(
+                                    current_inode_id,
+                                    args_copy[1].as_str(),
+                                    OpenFlags::RDONLY,
+                                );
+                                if fd == -1 {
+                                    panic!("Error occured when opening file");
+                                }
+                                let fd = fd as usize;
+                                let mut buf = [0u8; 256];
+                                loop {
+                                    let size = read(fd, &mut buf) as usize;
+                                    if size == 0 {
+                                        break;
+                                    }
+                                    print!("{}", core::str::from_utf8(&buf[..size]).unwrap());
+                                }
+                                close(fd);
                                 continue;
                             }
                             let pid = fork();
